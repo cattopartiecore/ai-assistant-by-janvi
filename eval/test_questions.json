@@ -1,0 +1,65 @@
+[
+  {
+    "id": 1,
+    "category": "standard",
+    "type": "answerable",
+    "question": "What are the Student Support Desk's opening hours?",
+    "expected_sections": [1],
+    "expected_answer": "Monday to Friday, from 10:00 AM to 4:00 PM. Closed on weekends and declared university holidays.",
+    "key_facts": ["Monday to Friday", "10:00 AM to 4:00 PM", "closed on weekends", "university holidays"]
+  },
+  {
+    "id": 2,
+    "category": "standard",
+    "type": "answerable",
+    "question": "Does attending a workshop automatically give me a certificate?",
+    "expected_sections": [3, 6],
+    "expected_answer": "No. Attendance at a workshop does not automatically provide a certificate. A certificate is provided only when the event announcement says one is offered and states the eligibility conditions.",
+    "key_facts": ["No", "not automatically", "event announcement", "eligibility"]
+  },
+  {
+    "id": 3,
+    "category": "standard",
+    "type": "answerable",
+    "question": "What files should a project submission include, and what should the README cover?",
+    "expected_sections": [4, 6],
+    "expected_answer": "A project repository should include a README, a DECISIONS.md file (describing at least one meaningful decision, an alternative considered, and reason for choice), and AI_USAGE.md (if AI tools are used). The README must explain the project goal, setup instructions, how to run the project, and important limitations.",
+    "key_facts": ["README", "DECISIONS.md", "AI_USAGE.md", "goal", "setup", "how to run", "limitations"]
+  },
+  {
+    "id": 4,
+    "category": "standard",
+    "type": "answerable",
+    "question": "Who do I contact for a learning-portal problem versus a fee payment issue?",
+    "expected_sections": [1, 6],
+    "expected_answer": "For technical problems with the learning portal, contact the IT help desk. For fee payment issues, contact the accounts office.",
+    "key_facts": ["IT help desk", "learning portal", "accounts office", "fee payment"]
+  },
+  {
+    "id": 5,
+    "category": "standard",
+    "type": "unanswerable",
+    "question": "Who is the current community lead of GDG On Campus USAR?",
+    "expected_sections": [7],
+    "expected_answer": "This information is not available in the handbook.",
+    "key_facts": ["This information is not available in the handbook."]
+  },
+  {
+    "id": 6,
+    "category": "bonus",
+    "type": "unanswerable",
+    "question": "When and where is the next workshop?",
+    "expected_sections": [3, 7],
+    "expected_answer": "This information is not available in the handbook.",
+    "key_facts": ["This information is not available in the handbook."]
+  },
+  {
+    "id": 7,
+    "category": "bonus",
+    "type": "answerable",
+    "question": "Can the Support Desk approve my fee refund?",
+    "expected_sections": [1, 6],
+    "expected_answer": "No. The Student Support Desk can guide students on where to submit a request, but it does not approve academic extensions, fee refunds, or attendance exemptions.",
+    "key_facts": ["No", "does not approve", "fee refund", "guide"]
+  }
+]
