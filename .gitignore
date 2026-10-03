@@ -1,4 +1,4 @@
-# Environment and secrets
+# Environment and secrets (NEVER commit these)
 .env
 .env.*
 !.env.example
@@ -8,7 +8,7 @@
 env/
 venv/
 
-# Vector database & storage
+# Vector database & persistent storage
 chroma_db/
 feedback.json
 
@@ -17,8 +17,9 @@ feedback.json
 data/*_private.*
 data/*.private.*
 
-# Python caches
+# Python caches and compiled bytecode
 __pycache__/
+*.pyc
 *.py[cod]
 *$py.class
 *.pyd

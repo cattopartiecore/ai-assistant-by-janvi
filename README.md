@@ -1,217 +1,164 @@
-# GDG-USAR AI-Powered Document Assistant (Task 3)
+# GDG On Campus USAR — Knowledge Assistant
 
-An intelligent, grounded Retrieval-Augmented Generation (RAG) assistant for the *GDG-USAR Student Handbook*, built with LangChain, ChromaDB, HuggingFace embeddings, and Google Gemini / Groq LLMs.
+An intelligent, grounded multi-document Retrieval-Augmented Generation (RAG) assistant for **GDG On Campus USAR**. Built with LangChain, ChromaDB, HuggingFace embeddings (`all-MiniLM-L6-v2`), Google Gemini API (`gemini-3.5-flash-lite`), and Streamlit with custom Google-inspired theming.
 
----
+The system delivers verified, self-contained answers strictly from official campus documents, equipped with a rigorous **two-layer zero-hallucination defense** and traceable citations.
 
-## 1. Goal
-
-The goal of this project is to provide accurate, strictly grounded answers to student queries regarding GDG-USAR club activities, student support desks, workshop participation, event registration, and project submissions. 
-
-Key architectural goals include:
-1. **Zero Hallucination / Strict Grounding**: The assistant answers strictly from retrieved handbook passages.
-2. **Explicit Citations**: Every answer provides verified citations formatted as:
-   `Sources: Section N: Title (page P) - "supporting quotation under 25 words"`.
-3. **Two-Layer Out-of-Scope Defense**:
-   - **Layer A (Retrieval Guard)**: Queries with best cosine similarity score below $\tau = 0.40$ are intercepted immediately without calling the LLM.
-   - **Layer B (Prompt Guard)**: If retrieved context lacks the answer or addresses Section 7 ("Information Not Specified Here"), the LLM returns exactly:
-     `This information is not available in the handbook.`
-4. **Empirical Chunking Comparison**: Benchmarks `char_500` (CharacterTextSplitter) against `recursive_200` (RecursiveCharacterTextSplitter).
+> [!CAUTION]
+> **CRITICAL SECURITY NOTE**: Never commit or upload `.env` or `.venv/` to GitHub. Your `.env` contains your personal API keys, and `.venv/` contains local binaries. Both are ignored in `.gitignore`.
 
 ---
 
-## 2. Setup
+## ✨ Features
 
-### Prerequisites
-- Python 3.10+ (tested on Python 3.11)
-- Git (recommended)
-
-### Installation
-1. Clone the repository and navigate to the project root:
-   ```bash
-   cd Ja.antigravity
-   ```
-2. Create and activate a virtual environment:
-   ```bash
-   # Windows PowerShell
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-
-   # Linux / macOS
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Configure environment variables:
-   Copy the example `.env.example` file to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-   Open `.env` and configure your API key:
-   ```ini
-   LLM_PROVIDER=gemini
-   GOOGLE_API_KEY=your_gemini_api_key_here
-   # Optional: GROQ_API_KEY=your_groq_api_key_here
-   ```
-   *(Note: The system supports offline fallback mode if no API key is immediately supplied).*
+- **Multi-Document Knowledge Base**: Ingests and searches PDF, Markdown, and text files from `data/` (official handbook, 2026 events calendar, executive team roster, and project guidelines).
+- **Zero-Hallucination & Strict Grounding**: Two-layer out-of-scope defense (similarity threshold guard $\tau = 0.40$ + prompt-level constraints). Returns exactly *"This information is not available in the handbook."* when facts are absent.
+- **Handbook Priority Rule**: Resolves conflicts between sources by always prioritizing the official handbook.
+- **Dual Chunking Strategies**: Compares Character-based (`char_500`, 500 chars / 50 overlap) with Recursive Character-based (`recursive_200`, 200 chars / 30 overlap) chunking.
+- **Search Scope Selector**: Toggle between querying *All documents* or restricting queries strictly to the *Handbook only*.
+- **Polished Streamlit Web UI**:
+  - Google palette accents (Blue `#4285F4`, Red `#EA4335`, Yellow `#FBBC04`, Green `#34A853`) on dark `#121212` background.
+  - Native Dark / Light mode toggle.
+  - 6 starter question cards in a 2×3 grid with hover lift and glow.
+  - Typing effect for streaming responses and a soft shimmer skeleton during thinking states.
+  - Structured event schedule cards for `events_calendar_2026.md`.
+  - Confidence badges (High / Moderate / Low).
+  - Collapsible source citations with matched query keywords highlighted.
+  - Answer toolbar: Copy to clipboard, helpful/unhelpful rating capture (`feedback.json`), and answer regeneration.
+  - Sidebar file uploader and index rebuild tool.
+  - Export chat history as Markdown.
 
 ---
 
-## 3. How to Run
+## 📁 Project Structure
 
-### Running the Streamlit Web UI
-Launch the interactive web assistant with the Google Developer Group custom theme:
-```bash
-streamlit run app/app.py --server.fileWatcherType none
-```
-*(Tip: Using `--server.fileWatcherType none` prevents unnecessary server reloads when vector stores update in the background).*
-
-This opens the upgraded web interface featuring:
-- **Google Developer Group Brand Aesthetic**: Clean UI with `#4285F4`, `#EA4335`, `#FBBC04`, `#34A853` accents, Inter typography, soft shadows, and light/dark theme switch.
-- **6 Topic-Grouped Starter Chips**: Instant FAQ queries covering Support Desk, Events & Hackathons, Workshops, Project Submissions, Leadership, and Out-of-Scope Fallback.
-- **Search Scope Control**: Toggle between **All documents** (handbook + supplemental files) and **Handbook only** (strictly official Task 3 handbook).
-- **In-App Document Management**: Sidebar panel displaying all loaded files with chunk counts, a manual **"Rebuild Vector Index"** button, and an active drag-and-drop file uploader for `.txt`, `.md`, and `.pdf` files.
-- **Side-by-Side Compare Mode**: Real-time side-by-side comparison between `char_500` and `recursive_200`.
-- **Dynamic Confidence Badges**: High (🟢), Moderate (🟡), and Low (🔴) badges computed from cosine similarity scores.
-- **Amber Fallback Card**: Distinct warning card with helpful navigation hints and dynamic topics built from indexed document titles.
-- **Source Cards with Highlighting**: File name badge, section, page, cosine similarity score, and matched query word highlighting.
-- **Chat Tools & Feedback**: Thumbs up / down feedback logging to `feedback.json`, Markdown chat transcript export, and one-click answer download.
-- **Session Analytics Drawer**: Real-time tracking of questions asked, average confidence, fallback trigger rate, and latency.
-
-### How to Add Documents
-1. **Via Web UI**: Drop any `.pdf`, `.txt`, or `.md` file into the sidebar uploader in the Streamlit app. It is immediately copied to `data/` and indexed.
-2. **Via Filesystem**: Place your files into the `data/` directory and run:
-   ```bash
-   python -m src.indexer --rebuild
-   ```
-   The indexer calculates a composite directory hash (`data_manifest.json`) and automatically rebuilds the vector store if files are added, modified, or removed.
-
-### Indexing the Knowledge Base
-To pre-build or force a rebuild from all source documents in `data/`:
-```bash
-python -m src.indexer --rebuild
-```
-
-### Interactive CLI Chat Loop
-Start an interactive Q&A session:
-```bash
-# Run with default strategy (recursive_200) across all documents
-python -m src.main --scope all
-
-# Restrict query to handbook only
-python -m src.main --scope handbook --strategy recursive_200
-```
-Type `exit` or `quit` to end the session.
-
-### Single Question Query Mode
-Query directly from the command line:
-```bash
-python -m src.main --question "Who is the current community lead of GDG On Campus USAR?" --scope all
-```
-
-### Running Test Suite
-Execute all standard and bonus test questions against both chunking strategies:
-```bash
-python -m eval.run_tests
-```
-
-### Running Chunking Strategy Comparison
-Generate quantitative comparison tables, side-by-side retrieved chunk examples, and save `eval/results.json` and `eval/results.md`:
-```bash
-python -m eval.compare_chunking
-```
-
----
-
-## 4. Limitations
-
-1. **Static Document Scope**: The assistant is strictly restricted to `data/GDG_USAR_AI_Document_Assistant_Source_TASK3.pdf`. It does not retrieve live university announcements or database records.
-2. **Section 7 Intentional Boundaries**: Questions regarding upcoming event dates/venues, current community leadership, workshop-specific certificate thresholds, and individual student registration statuses are explicitly unanswerable per handbook Section 7.
-3. **Lexical Semantic Divergence**: Highly fragmented queries or obscure non-standard abbreviations not covered by the `all-MiniLM-L6-v2` embedding vocabulary may experience reduced retrieval similarity scores.
-
----
-
-## 5. Example Output
-
-### Example 1: Answerable Query (Support Desk Opening Hours)
 ```text
-======================================================================
-QUESTION: What are the Student Support Desk's opening hours?
-----------------------------------------------------------------------
-ANSWER:
-The Student Support Desk is open Monday to Friday, from 10:00 AM to 4:00 PM. It is closed on weekends and declared university holidays.
-
-Sources:
-Section 1: Student Support Desk (page 1) - "The desk is open Monday to Friday, from 10:00 AM to 4:00 PM."
-----------------------------------------------------------------------
-METRICS & TRACE:
-  • Best Similarity Score: 0.7315
-  • Latency: 0.045s
-  • Top-k Chunks Retrieved: 3
-    [1] Sec 1: Student Support Desk (p. 1) | Score: 0.7315
-    [2] Sec 6: Frequently Asked Questions (p. 2) | Score: 0.4623
-    [3] Sec 1: Student Support Desk (p. 1) | Score: 0.3732
-======================================================================
-```
-
-### Example 2: Unanswerable Query (Section 7 Trigger)
-```text
-======================================================================
-QUESTION: Who is the current community lead of GDG On Campus USAR?
-----------------------------------------------------------------------
-ANSWER:
-This information is not available in the handbook.
-----------------------------------------------------------------------
-METRICS & TRACE:
-  • Best Similarity Score: 0.7100
-  • Latency: 0.033s
-  • Guard Triggered: prompt_guard
-======================================================================
-```
-
-### Example 3: Completely Out-of-Scope Query (Retrieval Guard Trigger)
-```text
-======================================================================
-QUESTION: What is the airspeed velocity of an unladen swallow?
-----------------------------------------------------------------------
-ANSWER:
-This information is not available in the handbook.
-----------------------------------------------------------------------
-METRICS & TRACE:
-  • Best Similarity Score: 0.0339
-  • Latency: 0.012s
-  • Guard Triggered: retrieval_guard
-======================================================================
-```
-
----
-
-## Project Structure
-```
+Ja.antigravity/
+├── .streamlit/
+│   └── config.toml          # Dark theme settings, server headless=false & watcher config
 ├── app/
-│   └── app.py                 # Streamlit web UI with GDG styling & compare mode
+│   ├── __init__.py          # App package marker
+│   ├── app.py               # Streamlit web application entry point
+│   └── styles.py            # Centralized CSS variables, themes, and Google palette
 ├── data/
-│   └── GDG_USAR_AI_Document_Assistant_Source_TASK3.pdf  # Fictional Handbook (~4 pages)
-├── src/
-│   ├── config.py              # Centralized configuration & thresholds
-│   ├── loader.py              # PDF parser & merged heading normalization
-│   ├── chunker.py             # Strategies (char_500, recursive_200) & split analysis
-│   ├── indexer.py             # Embeddings & persistent Chroma collections
-│   ├── retriever.py           # Top-k search & retrieval guard check
-│   ├── qa_chain.py            # Strict prompt, two-layer guard, citations & retry
-│   └── main.py                # Interactive CLI and single query runner
+│   ├── GDG_USAR_AI_Document_Assistant_Source_TASK3.pdf  # Primary Task 3 handbook
+│   ├── events_calendar_2026.md                          # Annual events & hackathons
+│   ├── community_teams_and_leads.txt                    # Executive board & wings
+│   └── project_showcase_guidelines.pdf                  # Submission criteria
 ├── eval/
-│   ├── test_questions.json    # Standard & bonus test suites
-│   ├── compare_chunking.py    # Benchmark script & side-by-side chunk reporter
-│   ├── run_tests.py           # Automated test execution & verification
-│   ├── results.json           # Raw benchmark metrics
-│   └── results.md             # Markdown comparison report
-├── DECISIONS.md               # Real results, chunking trade-offs, architecture decisions
-├── AI_USAGE.md                # AI tools disclosure, review verification & reflection
-├── README.md                  # Goal, Setup, How to Run, Limitations, Example Output
-├── requirements.txt           # Python package dependencies
-└── .env.example               # Environment variables template
+│   ├── test_questions.json  # 12 test questions (5 core + 2 bonus + 4 extended + 1 unanswerable)
+│   ├── run_tests.py         # Automated test runner with zero-hallucination checks
+│   ├── compare_chunking.py  # Benchmark script comparing char_500 vs recursive_200
+│   ├── results.json         # Evaluation results & retrieval metrics
+│   └── results.md           # Benchmark report & analysis
+├── src/
+│   ├── __init__.py
+│   ├── config.py            # Global paths, model configs, thresholds & constants
+│   ├── loader.py            # Multi-format document loader with rich metadata schema
+│   ├── chunker.py           # Strategy implementations (char_500, recursive_200)
+│   ├── indexer.py           # Persistent ChromaDB vector indexer with auto-rebuild hash checks
+│   ├── retriever.py         # Cosine similarity retrieval with search scope filtering
+│   └── qa_chain.py          # Grounded QA chain, prompts, citations, and fallback logic
+├── .env.example             # Template for API keys and configuration
+├── .gitignore               # Ignores .env, .venv/, chroma_db/, caches, etc.
+├── requirements.txt         # Pinned project dependencies
+├── run.bat                  # One-click Windows launch script
+└── README.md                # Project documentation
 ```
+
+---
+
+## 🚀 Setup on Windows (Command Prompt)
+
+Follow these steps to set up the project on Windows using `cmd.exe`:
+
+### 1. Clone the Repository
+```cmd
+git clone https://github.com/your-username/gdg-usar-knowledge-assistant.git
+cd gdg-usar-knowledge-assistant
+```
+
+### 2. Create and Activate a Virtual Environment
+```cmd
+python -m venv .venv
+call .venv\Scripts\activate.bat
+```
+*(You should see `(.venv)` appear at the beginning of your command prompt).*
+
+### 3. Install Dependencies
+```cmd
+pip install -r requirements.txt
+```
+
+### 4. Configure Environment Variables
+Copy the example environment file to `.env`:
+```cmd
+copy .env.example .env
+```
+Open `.env` in Notepad:
+```cmd
+notepad .env
+```
+Set your API key:
+- **`GOOGLE_API_KEY`** *(Recommended)*: Get a free Gemini API key from [Google AI Studio](https://aistudio.google.com/).
+- **`GROQ_API_KEY`** *(Optional)*: If using Groq as an alternative LLM provider, obtain a key from [Groq Console](https://console.groq.com/).
+
+```ini
+LLM_PROVIDER=gemini
+GOOGLE_API_KEY=your_actual_google_api_key_here
+```
+*(No quotes needed. Save and close Notepad).*
+
+---
+
+## 💻 How to Run
+
+### Option 1: One-Click Launcher (Recommended)
+Simply double-click `run.bat` in the project root folder, or execute it in CMD:
+```cmd
+run.bat
+```
+This script verifies your virtual environment, activates it, starts Streamlit, and automatically opens the app in your default browser at `http://localhost:8501`.
+
+### Option 2: Command Line
+From the project root with your environment activated:
+```cmd
+.\.venv\Scripts\python.exe -m streamlit run app/app.py
+```
+
+---
+
+## 🛠️ Troubleshooting
+
+### 1. `[ERROR] Virtual environment (.venv) was not found!`
+- **Cause**: The `.venv` directory hasn't been created yet.
+- **Fix**: Run:
+  ```cmd
+  python -m venv .venv
+  call .venv\Scripts\activate.bat
+  pip install -r requirements.txt
+  ```
+
+### 2. `Missing API Key` or `429 Quota Exceeded`
+- **Missing Key**: Ensure you copied `.env.example` to `.env` and set `GOOGLE_API_KEY=your_key_here`. The app will warn you if `.env` or the key is absent.
+- **429 Rate Limit**: The Google Gemini free tier allows 15 requests per minute. If you hit this limit during heavy querying, wait 15–30 seconds and retry. The app includes friendly retry alerts.
+
+### 3. `Port 8501 is already in use`
+- **Cause**: Another Streamlit instance is currently running on port 8501.
+- **Fix**: Streamlit will automatically increment to port 8502 or 8503. Alternatively, close the other command prompt window running Streamlit, or kill the process on port 8501:
+  ```cmd
+  for /f "tokens=5" %a in ('netstat -aon ^| findstr :8501') do taskkill /f /pid %a
+  ```
+
+### 4. `ModuleNotFoundError`
+- **Cause**: Trying to run with global Python instead of the virtual environment.
+- **Fix**: Always run using `run.bat` or prefix commands with `.\.venv\Scripts\python.exe`.
+
+---
+
+## 🛡️ Security & Git Hygiene
+
+- `.env` contains confidential credentials and is explicitly excluded by `.gitignore`.
+- `.venv/` contains local architecture binaries and is excluded by `.gitignore`.
+- `chroma_db/` contains local vector embeddings generated from your files and will be regenerated automatically if absent.
+- **Never push secrets to GitHub**. Always use `.env.example` as a template for other contributors.
