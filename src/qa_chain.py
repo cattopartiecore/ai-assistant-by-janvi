@@ -28,6 +28,7 @@ from src.config import (
     GROQ_API_KEY,
     GEMINI_MODEL,
     GROQ_MODEL,
+    get_config_secret,
 )
 from src.retriever import retrieve_relevant_chunks
 
@@ -171,23 +172,23 @@ def get_llm(allow_mock_fallback: bool = False):
     Initializes the LLM based on LLM_PROVIDER ('gemini' or 'groq').
     Raises clear errors if the required API key is missing, unless allow_mock_fallback is True.
     """
-    provider = os.getenv("LLM_PROVIDER", LLM_PROVIDER).lower()
-    use_mock = os.getenv("MOCK_LLM", "false").lower() in ["true", "1", "yes"]
+    provider = get_config_secret("LLM_PROVIDER", LLM_PROVIDER).lower()
+    use_mock = get_config_secret("MOCK_LLM", "false").lower() in ["true", "1", "yes"]
 
     if use_mock:
         return MockHandbookLLM()
 
     if provider == "gemini":
-        api_key = os.getenv("GOOGLE_API_KEY", GOOGLE_API_KEY)
+        api_key = get_config_secret("GOOGLE_API_KEY", GOOGLE_API_KEY)
         if not api_key or api_key.startswith("your_"):
             if allow_mock_fallback:
                 return MockHandbookLLM()
             raise ValueError(
-                "GOOGLE_API_KEY is not set or invalid in .env file. "
-                "Please configure a valid Gemini API key in your .env file."
+                "GOOGLE_API_KEY is not set or invalid. "
+                "Please configure a valid Gemini API key in your .env file or Streamlit Secrets."
             )
         from langchain_google_genai import ChatGoogleGenerativeAI
-        model_name = os.getenv("GEMINI_MODEL", GEMINI_MODEL)
+        model_name = get_config_secret("GEMINI_MODEL", GEMINI_MODEL)
         return ChatGoogleGenerativeAI(
             model=model_name,
             google_api_key=api_key,
@@ -196,16 +197,16 @@ def get_llm(allow_mock_fallback: bool = False):
         )
 
     elif provider == "groq":
-        api_key = os.getenv("GROQ_API_KEY", GROQ_API_KEY)
+        api_key = get_config_secret("GROQ_API_KEY", GROQ_API_KEY)
         if not api_key or api_key.startswith("your_"):
             if allow_mock_fallback:
                 return MockHandbookLLM()
             raise ValueError(
-                "GROQ_API_KEY is not set or invalid in .env file. "
-                "Please configure a valid Groq API key in your .env file."
+                "GROQ_API_KEY is not set or invalid. "
+                "Please configure a valid Groq API key in your .env file or Streamlit Secrets."
             )
         from langchain_groq import ChatGroq
-        model_name = os.getenv("GROQ_MODEL", GROQ_MODEL)
+        model_name = get_config_secret("GROQ_MODEL", GROQ_MODEL)
         return ChatGroq(
             model=model_name,
             groq_api_key=api_key,

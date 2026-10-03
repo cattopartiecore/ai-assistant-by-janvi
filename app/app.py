@@ -5,6 +5,14 @@ file management, search scope control, streaming-style answers, feedback capture
 rich citation cards, chat export, and session analytics.
 """
 
+# Streamlit Community Cloud SQLite3 compatibility fix for ChromaDB (Linux)
+try:
+    __import__("pysqlite3")
+    import sys
+    sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+except (ImportError, KeyError):
+    pass
+
 import os
 import sys
 import json
@@ -95,6 +103,33 @@ def init_session():
 
 init_session()
 st.markdown(get_app_css(st.session_state.theme_mode), unsafe_allow_html=True)
+
+
+@st.cache_resource(show_spinner=False)
+def ensure_knowledge_base_ready():
+    """
+    Automatically builds and verifies ChromaDB collections on first startup
+    (e.g. on Streamlit Community Cloud where chroma_db is not committed).
+    Cached via st.cache_resource so it only executes once per session/runtime.
+    """
+    from src.indexer import get_vector_store, build_all_indices, is_index_outdated
+
+    needs_build = False
+    try:
+        vs_char = get_vector_store("char_500")
+        vs_rec = get_vector_store("recursive_200")
+        if vs_char._collection.count() == 0 or vs_rec._collection.count() == 0 or is_index_outdated():
+            needs_build = True
+    except Exception:
+        needs_build = True
+
+    if needs_build:
+        with st.spinner("🚀 Setting up knowledge base... (Indexing documents for the first time)"):
+            build_all_indices(force_rebuild=True)
+    return True
+
+
+ensure_knowledge_base_ready()
 
 
 # ---------------------------------------------------------------------------

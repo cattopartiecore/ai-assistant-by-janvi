@@ -128,6 +128,40 @@ From the project root with your environment activated:
 
 ---
 
+## ☁️ Deploy on Streamlit Community Cloud
+
+You can deploy this application for free to [Streamlit Community Cloud](https://share.streamlit.io/):
+
+1. **Push to GitHub**:
+   - Commit and push your repository to GitHub.
+   - Note: `.env`, `.venv/`, and `chroma_db/` are intentionally ignored by `.gitignore` and do NOT need to be uploaded. The source documents in `data/` are included.
+
+2. **Connect & Configure on Streamlit Cloud**:
+   - Sign in to [share.streamlit.io](https://share.streamlit.io/) with your GitHub account.
+   - Click **"New app"** (or **"Create app"**).
+   - Select your repository, branch (`main`), and set **Main file path** to:
+     ```text
+     app/app.py
+     ```
+
+3. **Add Secrets in App Settings**:
+   - Open **App Settings** → **Secrets** (or click **Advanced Settings** before deploying).
+   - Paste the following secrets with your real Google Gemini API key:
+     ```toml
+     LLM_PROVIDER = "gemini"
+     GOOGLE_API_KEY = "AIzaSy..."
+     GEMINI_MODEL = "gemini-3.5-flash-lite"
+     SIMILARITY_THRESHOLD = "0.40"
+     TOP_K = "3"
+     ```
+
+4. **Click Deploy**:
+   - Streamlit Cloud will install dependencies from `requirements.txt`.
+   - On initial launch, the app automatically detects that `chroma_db` is unbuilt and indexes all documents from `data/` with a spinner (*"Setting up knowledge base..."*).
+   - Once initialized, your GDG Assistant is live and accessible online!
+
+---
+
 ## 🛠️ Troubleshooting
 
 ### 1. `[ERROR] Virtual environment (.venv) was not found!`
