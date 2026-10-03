@@ -22,9 +22,13 @@ def display_result(result: dict):
     print(f"  • Latency: {result['latency_s']}s")
     if result.get("guard_triggered"):
         print(f"  • Guard Triggered: {result['guard_triggered']}")
-    print(f"  • Top-k Chunks Retrieved: {len(result.get('retrieved_chunks', []))}")
     for idx, c in enumerate(result.get("retrieved_chunks", []), 1):
-        print(f"    [{idx}] Sec {c.get('section_number')}: {c.get('section_title')} (p. {c.get('page')}) | Score: {c.get('similarity_score')}")
+        src_file = c.get("source_file", "unknown")
+        d_type = c.get("doc_type", "doc")
+        sec_num = c.get("section_number", "?")
+        sec_title = c.get("section_title", "")
+        page = c.get("page", 1)
+        print(f"    [{idx}] [{d_type}] {src_file} | Sec {sec_num}: {sec_title} (p. {page}) | Score: {c.get('similarity_score')}")
     print("=" * 70 + "\n")
 
 
@@ -95,6 +99,12 @@ def main():
         default=SIMILARITY_THRESHOLD,
         help="Minimum similarity score threshold for retrieval guard.",
     )
+    parser.add_argument(
+        "--scope",
+        choices=["all", "handbook"],
+        default="all",
+        help="Search scope: 'all' (all documents) or 'handbook' (official handbook only).",
+    )
 
     args = parser.parse_args()
 
@@ -108,6 +118,7 @@ def main():
             strategy=args.strategy,
             top_k=args.top_k,
             threshold=args.threshold,
+            scope=args.scope,
             allow_mock_fallback=True,
         )
         display_result(result)

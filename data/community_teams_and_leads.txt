@@ -1,0 +1,20 @@
+GDG ON CAMPUS USAR - COMMUNITY LEADERSHIP AND TEAMS (2026)
+
+1. Executive Core Team
+The GDG On Campus USAR chapter is led by the student executive board for the 2026-2027 term:
+- Community Lead: Aarav Sharma (3rd Year, Computer Science & AI)
+- Technical Head: Priya Patel (3rd Year, Information Technology)
+- Design & Media Lead: Rohan Gupta (2nd Year, Automation & Robotics)
+- Operations & Logistics Lead: Ananya Singh (3rd Year, Artificial Intelligence)
+- Faculty Sponsor & Advisor: Dr. Neha Verma (Associate Professor, Department of AI & Data Science)
+
+2. Domain Specialization Teams
+GDG USAR operates four specialized sub-teams:
+- Machine Learning & GenAI Wing: Focuses on TensorFlow, Gemini API, and deep learning research projects.
+- Web & Cloud Infrastructure Wing: Focuses on modern frontend frameworks, Firebase, and Google Cloud.
+- Android & Flutter Wing: Focuses on cross-platform mobile app development.
+- Open Source & Community Engagement: Manages community meetups, beginner study circles, and hackathon logistics.
+
+3. Official Communication Channels & Office
+- Official Discord Server: All club announcements, study jam voice lounges, and mentor Q&A channels are hosted on the GDG USAR Discord server.
+- Physical Office Location: Student Activity Center, Room 402 (AI Lab Annex), Main Campus.

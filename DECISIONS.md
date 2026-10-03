@@ -106,8 +106,48 @@ The system prompt explicitly commands the model:
 
 ---
 
-## 6. System Limitations
+## 7. Multi-Document Knowledge Base Extension & Conflict Resolution
 
-1. **Document-Restricted Scope**: Restricted exclusively to `data/GDG_USAR_AI_Document_Assistant_Source_TASK3.pdf`.
-2. **Static Knowledge Base**: Does not track live event registrations, attendance logs, or real-time university calendar modifications.
-3. **Lexical Divergence Sensitivity**: Highly misspelled queries or obscure abbreviations not recognized by the MiniLM tokenizer may fall below the 0.40 similarity threshold.
+### 7.1 Architecture & Metadata Schema
+To expand beyond the initial single-PDF constraint, the system was upgraded to support heterogeneous file formats (`.pdf`, `.txt`, `.md`) residing in `data/`. Every document is ingested through `src/loader.py` and tagged with a standardized metadata schema:
+- `source_file`: Original file name (e.g. `GDG_USAR_AI_Document_Assistant_Source_TASK3.pdf`, `community_teams_and_leads.txt`, `events_calendar_2026.md`, `project_showcase_guidelines.pdf`).
+- `doc_title`: Human-readable title extracted from markdown headers or document cover text.
+- `section`: Clean section title label (e.g., `Section 1: Executive Core Team`).
+- `section_number` & `section_title`: Decomposed identifiers for backwards compatibility.
+- `page`: 1-based page number for paginated PDFs, or `1` for text/markdown documents.
+- `doc_type`: Distinct enum tag (`handbook` for the official Task 3 handbook, `extra` for supplemental documents).
+
+### 7.2 Automatic Hash-Based Rebuilds
+To guarantee index synchronization when files are added or modified:
+1. `src/indexer.py` generates a composite MD5 hash across all supported files in `data/` based on file names, file sizes, and modification timestamps (`st_mtime`).
+2. The hash is persisted in `chroma_db/data_manifest.json`.
+3. Before executing searches, `ensure_indices_up_to_date()` compares the current directory hash against the manifest. If a change is detected, ChromaDB automatically clears and rebuilds both collections (`gdg_char_500` and `gdg_recursive_200`).
+4. Rebuilds can also be explicitly forced via CLI: `python -m src.indexer --rebuild`.
+
+### 7.3 Search Scope & Conflict Resolution Rule
+- **Search Scopes**:
+  - `Handbook only`: Chroma metadata filter restricts retrieval to `{"doc_type": "handbook"}`. Standard Task 3 questions and Section 7 unanswerable questions pass with 100% fidelity.
+  - `All documents`: Queries both handbook and supplemental files (`community_teams_and_leads.txt`, `events_calendar_2026.md`, `project_showcase_guidelines.pdf`), enabling factual responses to club leadership and upcoming hackathon schedules.
+- **Conflict Resolution Rule**:
+  The official Student Handbook is established as the primary source of truth. If a supplemental document contradicts the handbook (e.g., an informal bulletin in `events_calendar_2026.md` stating workshop certificates are automatically issued to all attendees), the prompt enforces:
+  > *"If any extra document (doc_type: extra) contradicts or disagrees with the official handbook on any rule, requirement, or guideline, you MUST PREFER the handbook's statement. Briefly mention the conflict in your answer."*
+  In live testing (Question 10), Gemini accurately asserted the handbook rule and explicitly noted the informal bulletin's conflicting claim.
+
+### 7.4 Multi-Document Benchmark Trade-offs (Real Test Results)
+Across the extended 12-question benchmark (7 standard/bonus handbook questions + 5 extended multi-document questions) using the live Gemini 3.5 Flash Lite API:
+
+| Metric | Strategy A (`char_500`) | Strategy B (`recursive_200`) |
+| :--- | :--- | :--- |
+| **Total Chunks** | 26 | 75 |
+| **Avg Chunk Length** | 373.7 chars | 131.4 chars |
+| **Mid-Sentence Splits** | 12 | 51 |
+| **Retrieval Hit Rate** | 100.0% | 100.0% |
+| **Citation Accuracy** | 91.7% | **100.0%** |
+| **Fallback Correctness** | 91.7% | **100.0%** |
+| **Total Passed** | 11/12 | **12/12 (100%)** |
+| **Average Latency** | 15.77s | **3.38s** |
+
+**Trade-off Analysis**:
+- **Strategy B (`recursive_200`)** achieved a **100% pass rate (12/12)** and **3.38s average latency**. Its dense, sentence-level chunks prevent semantic vector dilution and align precisely with concise factual queries (e.g., leadership roles, hackathon dates).
+- **Strategy A (`char_500`)** passed 11/12 questions. Its 500-character chunks diluted the Support Desk fee refund restriction (Question 7), causing Gemini's strict prompt guard to refuse to answer rather than risk hallucination.
+- Therefore, `recursive_200` remains the confirmed default architecture for the multi-document assistant.

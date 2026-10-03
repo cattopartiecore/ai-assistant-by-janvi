@@ -1,11 +1,12 @@
 """
 Retriever module for GDG-USAR AI Document Assistant.
 Executes top-k semantic similarity search against the chosen Chroma collection,
-converts distance to normalized cosine similarity scores, and implements
-the Layer-A Retrieval Guard against out-of-scope queries.
+converts distance to normalized cosine similarity scores, supports search scope
+filtering ('all' vs 'handbook'), and implements the Layer-A Retrieval Guard.
 """
 
 from typing import List, Dict, Any, Optional
+from pathlib import Path
 from langchain_core.documents import Document
 
 from src.config import (
@@ -13,7 +14,7 @@ from src.config import (
     DEFAULT_TOP_K,
     SIMILARITY_THRESHOLD,
 )
-from src.indexer import get_vector_store, build_index
+from src.indexer import get_vector_store, build_index, ensure_indices_up_to_date
 
 
 def retrieve_relevant_chunks(
@@ -21,6 +22,7 @@ def retrieve_relevant_chunks(
     strategy: str = DEFAULT_STRATEGY,
     top_k: int = DEFAULT_TOP_K,
     threshold: float = SIMILARITY_THRESHOLD,
+    scope: str = "all",
 ) -> Dict[str, Any]:
     """
     Performs similarity search with scores for a given user query.
@@ -30,24 +32,28 @@ def retrieve_relevant_chunks(
         strategy: 'char_500' or 'recursive_200'.
         top_k: Number of relevant chunks to retrieve.
         threshold: Minimum cosine similarity score required to pass retrieval guard.
+        scope: 'all' (all indexed documents) or 'handbook' (official handbook only).
 
     Returns:
-        Dict containing:
-            - 'query': original query
-            - 'strategy': strategy used
-            - 'top_k': k requested
-            - 'results': list of dicts with doc, content, metadata, similarity_score, distance
-            - 'best_score': highest similarity score among retrieved chunks
-            - 'passes_retrieval_guard': boolean flag indicating whether best_score >= threshold
+        Dict containing query, strategy, top_k, scope, threshold, results, best_score, passes_retrieval_guard.
     """
+    # Auto-rebuild if data directory files changed
+    ensure_indices_up_to_date()
+
     vector_store = get_vector_store(strategy)
 
-    # Ensure index exists; build if empty
     if vector_store._collection.count() == 0:
         build_index(strategy=strategy)
 
-    # Similarity search with raw cosine distance
-    raw_results = vector_store.similarity_search_with_score(query, k=top_k)
+    # Apply search scope filter
+    filter_dict = None
+    if scope.lower() in ["handbook", "handbook_only", "official"]:
+        filter_dict = {"doc_type": "handbook"}
+
+    if filter_dict:
+        raw_results = vector_store.similarity_search_with_score(query, k=top_k, filter=filter_dict)
+    else:
+        raw_results = vector_store.similarity_search_with_score(query, k=top_k)
 
     processed_results = []
     best_score = 0.0
@@ -61,14 +67,25 @@ def retrieve_relevant_chunks(
         if similarity_rounded > best_score:
             best_score = similarity_rounded
 
+        meta = doc.metadata or {}
+        src_path = meta.get("source", "")
+        source_file = meta.get("source_file") or (Path(src_path).name if src_path else "handbook.pdf")
+        doc_title = meta.get("doc_title") or source_file
+        doc_type = meta.get("doc_type", "extra")
+        sec_label = meta.get("section") or f"Section {meta.get('section_number', '?')}: {meta.get('section_title', '')}"
+
         processed_results.append({
             "document": doc,
             "content": doc.page_content,
-            "metadata": doc.metadata,
-            "section_number": doc.metadata.get("section_number"),
-            "section_title": doc.metadata.get("section_title"),
-            "page": doc.metadata.get("page"),
-            "chunk_id": doc.metadata.get("chunk_id"),
+            "metadata": meta,
+            "source_file": source_file,
+            "doc_title": doc_title,
+            "doc_type": doc_type,
+            "section": sec_label,
+            "section_number": meta.get("section_number"),
+            "section_title": meta.get("section_title"),
+            "page": meta.get("page", 1),
+            "chunk_id": meta.get("chunk_id"),
             "similarity_score": similarity_rounded,
             "distance": round(float(distance), 4),
         })
@@ -79,6 +96,7 @@ def retrieve_relevant_chunks(
         "query": query,
         "strategy": strategy,
         "top_k": top_k,
+        "scope": scope,
         "threshold": threshold,
         "results": processed_results,
         "best_score": best_score,
@@ -87,19 +105,17 @@ def retrieve_relevant_chunks(
 
 
 if __name__ == "__main__":
-    test_queries = [
-        "What are the Student Support Desk's opening hours?",
-        "Who is the current community lead of GDG On Campus USAR?",
-        "What is the airspeed velocity of an unladen swallow?",
-    ]
+    print("Testing retrieve_relevant_chunks across scopes:")
+    q = "Who is the current community lead of GDG On Campus USAR?"
+    
+    print("\n--- Scope: Handbook only ---")
+    res_hb = retrieve_relevant_chunks(q, strategy="recursive_200", scope="handbook")
+    print(f"Best score: {res_hb['best_score']}")
+    for r in res_hb['results']:
+        print(f"  [{r['doc_type']}] {r['source_file']} | {r['section']} | Score: {r['similarity_score']}")
 
-    for q in test_queries:
-        print("\n" + "=" * 60)
-        print(f"Query: {q}")
-        print("=" * 60)
-        res = retrieve_relevant_chunks(q, strategy="char_500", top_k=3)
-        print(f"Best Similarity Score: {res['best_score']}")
-        print(f"Passes Retrieval Guard (Threshold={res['threshold']}): {res['passes_retrieval_guard']}")
-        for idx, item in enumerate(res["results"]):
-            print(f"  [{idx+1}] Score: {item['similarity_score']} | Sec {item['section_number']}: {item['section_title']} (p. {item['page']})")
-            print(f"      Snippet: {item['content'][:90]}...")
+    print("\n--- Scope: All documents ---")
+    res_all = retrieve_relevant_chunks(q, strategy="recursive_200", scope="all")
+    print(f"Best score: {res_all['best_score']}")
+    for r in res_all['results']:
+        print(f"  [{r['doc_type']}] {r['source_file']} | {r['section']} | Score: {r['similarity_score']}")

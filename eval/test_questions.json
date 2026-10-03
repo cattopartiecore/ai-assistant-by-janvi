@@ -1,65 +1,138 @@
-[
-  {
-    "id": 1,
-    "category": "standard",
-    "type": "answerable",
-    "question": "What are the Student Support Desk's opening hours?",
-    "expected_sections": [1],
-    "expected_answer": "Monday to Friday, from 10:00 AM to 4:00 PM. Closed on weekends and declared university holidays.",
-    "key_facts": ["Monday to Friday", "10:00 AM to 4:00 PM", "closed on weekends", "university holidays"]
-  },
-  {
-    "id": 2,
-    "category": "standard",
-    "type": "answerable",
-    "question": "Does attending a workshop automatically give me a certificate?",
-    "expected_sections": [3, 6],
-    "expected_answer": "No. Attendance at a workshop does not automatically provide a certificate. A certificate is provided only when the event announcement says one is offered and states the eligibility conditions.",
-    "key_facts": ["No", "not automatically", "event announcement", "eligibility"]
-  },
-  {
-    "id": 3,
-    "category": "standard",
-    "type": "answerable",
-    "question": "What files should a project submission include, and what should the README cover?",
-    "expected_sections": [4, 6],
-    "expected_answer": "A project repository should include a README, a DECISIONS.md file (describing at least one meaningful decision, an alternative considered, and reason for choice), and AI_USAGE.md (if AI tools are used). The README must explain the project goal, setup instructions, how to run the project, and important limitations.",
-    "key_facts": ["README", "DECISIONS.md", "AI_USAGE.md", "goal", "setup", "how to run", "limitations"]
-  },
-  {
-    "id": 4,
-    "category": "standard",
-    "type": "answerable",
-    "question": "Who do I contact for a learning-portal problem versus a fee payment issue?",
-    "expected_sections": [1, 6],
-    "expected_answer": "For technical problems with the learning portal, contact the IT help desk. For fee payment issues, contact the accounts office.",
-    "key_facts": ["IT help desk", "learning portal", "accounts office", "fee payment"]
-  },
-  {
-    "id": 5,
-    "category": "standard",
-    "type": "unanswerable",
-    "question": "Who is the current community lead of GDG On Campus USAR?",
-    "expected_sections": [7],
-    "expected_answer": "This information is not available in the handbook.",
-    "key_facts": ["This information is not available in the handbook."]
-  },
-  {
-    "id": 6,
-    "category": "bonus",
-    "type": "unanswerable",
-    "question": "When and where is the next workshop?",
-    "expected_sections": [3, 7],
-    "expected_answer": "This information is not available in the handbook.",
-    "key_facts": ["This information is not available in the handbook."]
-  },
-  {
-    "id": 7,
-    "category": "bonus",
-    "type": "answerable",
-    "question": "Can the Support Desk approve my fee refund?",
-    "expected_sections": [1, 6],
-    "expected_answer": "No. The Student Support Desk can guide students on where to submit a request, but it does not approve academic extensions, fee refunds, or attendance exemptions.",
-    "key_facts": ["No", "does not approve", "fee refund", "guide"]
-  }
-]
+{
+  "standard": [
+    {
+      "id": 1,
+      "category": "standard",
+      "type": "answerable",
+      "scope": "handbook",
+      "question": "What are the Student Support Desk's opening hours?",
+      "expected_sections": [1],
+      "expected_source_file": "GDG_USAR_AI_Document_Assistant_Source_TASK3.pdf",
+      "expected_answer": "Monday to Friday, from 10:00 AM to 4:00 PM. Closed on weekends and declared university holidays.",
+      "key_facts": ["Monday to Friday", "10:00 AM to 4:00 PM", "closed on weekends", "university holidays"]
+    },
+    {
+      "id": 2,
+      "category": "standard",
+      "type": "answerable",
+      "scope": "handbook",
+      "question": "Does attending a workshop automatically give me a certificate?",
+      "expected_sections": [3, 6],
+      "expected_source_file": "GDG_USAR_AI_Document_Assistant_Source_TASK3.pdf",
+      "expected_answer": "No. Attendance at a workshop does not automatically provide a certificate. A certificate is provided only when the event announcement says one is offered and states the eligibility conditions.",
+      "key_facts": ["No", "not automatically", "event announcement", "eligibility"]
+    },
+    {
+      "id": 3,
+      "category": "standard",
+      "type": "answerable",
+      "scope": "handbook",
+      "question": "What files should a project submission include, and what should the README cover?",
+      "expected_sections": [4, 6],
+      "expected_source_file": "GDG_USAR_AI_Document_Assistant_Source_TASK3.pdf",
+      "expected_answer": "A project repository should include a README, a DECISIONS.md file (describing at least one meaningful decision, an alternative considered, and reason for choice), and AI_USAGE.md (if AI tools are used). The README must explain the project goal, setup instructions, how to run the project, and important limitations.",
+      "key_facts": ["README", "DECISIONS.md", "AI_USAGE.md", "goal", "setup", "how to run", "limitations"]
+    },
+    {
+      "id": 4,
+      "category": "standard",
+      "type": "answerable",
+      "scope": "handbook",
+      "question": "Who do I contact for a learning-portal problem versus a fee payment issue?",
+      "expected_sections": [1, 6],
+      "expected_source_file": "GDG_USAR_AI_Document_Assistant_Source_TASK3.pdf",
+      "expected_answer": "For technical problems with the learning portal, contact the IT help desk. For fee payment issues, contact the accounts office.",
+      "key_facts": ["IT help desk", "learning portal", "accounts office", "fee payment"]
+    },
+    {
+      "id": 5,
+      "category": "standard",
+      "type": "unanswerable",
+      "scope": "handbook",
+      "question": "Who is the current community lead of GDG On Campus USAR?",
+      "expected_sections": [7],
+      "expected_source_file": "GDG_USAR_AI_Document_Assistant_Source_TASK3.pdf",
+      "expected_answer": "This information is not available in the handbook.",
+      "key_facts": ["This information is not available in the handbook."]
+    },
+    {
+      "id": 6,
+      "category": "bonus",
+      "type": "unanswerable",
+      "scope": "handbook",
+      "question": "When and where is the next workshop?",
+      "expected_sections": [3, 7],
+      "expected_source_file": "GDG_USAR_AI_Document_Assistant_Source_TASK3.pdf",
+      "expected_answer": "This information is not available in the handbook.",
+      "key_facts": ["This information is not available in the handbook."]
+    },
+    {
+      "id": 7,
+      "category": "bonus",
+      "type": "answerable",
+      "scope": "handbook",
+      "question": "Can the Support Desk approve my fee refund?",
+      "expected_sections": [1, 6],
+      "expected_source_file": "GDG_USAR_AI_Document_Assistant_Source_TASK3.pdf",
+      "expected_answer": "No. The Student Support Desk can guide students on where to submit a request, but it does not approve academic extensions, fee refunds, or attendance exemptions.",
+      "key_facts": ["No", "does not approve", "fee refund", "guide"]
+    }
+  ],
+  "extended": [
+    {
+      "id": 8,
+      "category": "extended",
+      "type": "answerable",
+      "scope": "all",
+      "question": "Who is the current community lead of GDG On Campus USAR, and what is their year and academic branch?",
+      "expected_sections": [1],
+      "expected_source_file": "community_teams_and_leads.txt",
+      "expected_answer": "The Community Lead is Aarav Sharma, a 3rd Year student in Computer Science & AI.",
+      "key_facts": ["Aarav Sharma", "3rd Year", "Computer Science"]
+    },
+    {
+      "id": 9,
+      "category": "extended",
+      "type": "answerable",
+      "scope": "all",
+      "question": "When is HackUSAR 2026 scheduled to take place, where is the venue, and what is the team size requirement?",
+      "expected_sections": [2],
+      "expected_source_file": "events_calendar_2026.md",
+      "expected_answer": "HackUSAR 2026 is scheduled for November 14–15, 2026. The venue is the Main Campus USAR Auditorium & IoT Labs. Teams must consist of 2 to 4 members.",
+      "key_facts": ["November 14", "Auditorium", "2 to 4"]
+    },
+    {
+      "id": 10,
+      "category": "extended",
+      "type": "answerable",
+      "scope": "all",
+      "question": "Does scanning the QR code at the door automatically guarantee an event certificate for workshop attendees?",
+      "expected_sections": [3, 4],
+      "expected_source_file": "events_calendar_2026.md",
+      "expected_answer": "No. Although an informal club bulletin mentioned automatic certificates, the official GDG-USAR Student Handbook policy takes precedence and states that workshop attendance does NOT automatically grant a certificate unless explicitly stated and criteria are met.",
+      "key_facts": ["No", "not automatically", "handbook", "certificate"]
+    },
+    {
+      "id": 11,
+      "category": "extended",
+      "type": "answerable",
+      "scope": "all",
+      "question": "What is the pitch time limit and evaluation scoring rubric for the GDG USAR Annual Project Showcase?",
+      "expected_sections": [1, 2],
+      "expected_source_file": "project_showcase_guidelines.pdf",
+      "expected_answer": "Each team is allotted a 5-minute technical pitch followed by a 2-minute live Q&A session. The scoring rubric totals 100 points: Technical Execution (40 points), Innovation & Originality (30 points), and Community & Real-World Impact (30 points).",
+      "key_facts": ["5-minute", "2-minute", "Technical Execution", "Innovation", "Impact"]
+    },
+    {
+      "id": 12,
+      "category": "extended",
+      "type": "unanswerable",
+      "scope": "all",
+      "question": "What is the total annual funding budget allocated to GDG USAR for the 2027 academic term?",
+      "expected_sections": [],
+      "expected_source_file": null,
+      "expected_answer": "This information is not available in the handbook.",
+      "key_facts": ["This information is not available in the handbook."]
+    }
+  ]
+}

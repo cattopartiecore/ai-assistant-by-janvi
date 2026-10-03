@@ -1,5 +1,28 @@
+# Environment and secrets
 .env
+.env.*
+!.env.example
+
+# Virtual environments
 .venv/
+env/
+venv/
+
+# Vector database & storage
 chroma_db/
+feedback.json
+
+# Private uploaded documents
+*private*
+data/*_private.*
+data/*.private.*
+
+# Python caches
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.pyd
+
+# Temporary & evaluation outputs
+scratch/
+.pytest_cache/

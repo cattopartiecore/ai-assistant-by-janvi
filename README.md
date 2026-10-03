@@ -62,27 +62,54 @@ Key architectural goals include:
 
 ## 3. How to Run
 
-### Indexing the Handbook
-The vector indices build automatically on first query. To pre-build or force a rebuild from the source PDF:
+### Running the Streamlit Web UI
+Launch the interactive web assistant with the Google Developer Group custom theme:
 ```bash
-python -m src.indexer
+streamlit run app/app.py --server.fileWatcherType none
+```
+*(Tip: Using `--server.fileWatcherType none` prevents unnecessary server reloads when vector stores update in the background).*
+
+This opens the upgraded web interface featuring:
+- **Google Developer Group Brand Aesthetic**: Clean UI with `#4285F4`, `#EA4335`, `#FBBC04`, `#34A853` accents, Inter typography, soft shadows, and light/dark theme switch.
+- **6 Topic-Grouped Starter Chips**: Instant FAQ queries covering Support Desk, Events & Hackathons, Workshops, Project Submissions, Leadership, and Out-of-Scope Fallback.
+- **Search Scope Control**: Toggle between **All documents** (handbook + supplemental files) and **Handbook only** (strictly official Task 3 handbook).
+- **In-App Document Management**: Sidebar panel displaying all loaded files with chunk counts, a manual **"Rebuild Vector Index"** button, and an active drag-and-drop file uploader for `.txt`, `.md`, and `.pdf` files.
+- **Side-by-Side Compare Mode**: Real-time side-by-side comparison between `char_500` and `recursive_200`.
+- **Dynamic Confidence Badges**: High (🟢), Moderate (🟡), and Low (🔴) badges computed from cosine similarity scores.
+- **Amber Fallback Card**: Distinct warning card with helpful navigation hints and dynamic topics built from indexed document titles.
+- **Source Cards with Highlighting**: File name badge, section, page, cosine similarity score, and matched query word highlighting.
+- **Chat Tools & Feedback**: Thumbs up / down feedback logging to `feedback.json`, Markdown chat transcript export, and one-click answer download.
+- **Session Analytics Drawer**: Real-time tracking of questions asked, average confidence, fallback trigger rate, and latency.
+
+### How to Add Documents
+1. **Via Web UI**: Drop any `.pdf`, `.txt`, or `.md` file into the sidebar uploader in the Streamlit app. It is immediately copied to `data/` and indexed.
+2. **Via Filesystem**: Place your files into the `data/` directory and run:
+   ```bash
+   python -m src.indexer --rebuild
+   ```
+   The indexer calculates a composite directory hash (`data_manifest.json`) and automatically rebuilds the vector store if files are added, modified, or removed.
+
+### Indexing the Knowledge Base
+To pre-build or force a rebuild from all source documents in `data/`:
+```bash
+python -m src.indexer --rebuild
 ```
 
 ### Interactive CLI Chat Loop
 Start an interactive Q&A session:
 ```bash
-# Run with default strategy (recursive_200)
-python -m src.main
+# Run with default strategy (recursive_200) across all documents
+python -m src.main --scope all
 
-# Run with character 500 strategy
-python -m src.main --strategy char_500
+# Restrict query to handbook only
+python -m src.main --scope handbook --strategy recursive_200
 ```
 Type `exit` or `quit` to end the session.
 
 ### Single Question Query Mode
 Query directly from the command line:
 ```bash
-python -m src.main --question "What are the Student Support Desk's opening hours?" --strategy char_500
+python -m src.main --question "Who is the current community lead of GDG On Campus USAR?" --scope all
 ```
 
 ### Running Test Suite
@@ -164,6 +191,8 @@ METRICS & TRACE:
 
 ## Project Structure
 ```
+├── app/
+│   └── app.py                 # Streamlit web UI with GDG styling & compare mode
 ├── data/
 │   └── GDG_USAR_AI_Document_Assistant_Source_TASK3.pdf  # Fictional Handbook (~4 pages)
 ├── src/

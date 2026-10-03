@@ -4,12 +4,14 @@ Implements CharacterTextSplitter (500/50) and RecursiveCharacterTextSplitter (20
 ensuring that section and page metadata are strictly preserved across all chunks.
 """
 
+import re
+from pathlib import Path
 from typing import List, Dict, Any
 from langchain_core.documents import Document
 from langchain_text_splitters import CharacterTextSplitter, RecursiveCharacterTextSplitter
 
 from src.config import CHUNK_STRATEGIES, DEFAULT_STRATEGY
-from src.loader import load_and_parse_handbook
+from src.loader import load_and_parse_handbook, load_all_documents
 
 
 def get_text_splitter(strategy: str):
@@ -66,7 +68,9 @@ def chunk_documents(documents: List[Document], strategy: str = DEFAULT_STRATEGY)
             text_clean = text.strip()
             if not text_clean:
                 continue
-            chunk_id = f"sec{doc.metadata.get('section_number', 0)}_chunk{i+1}"
+            src_name = Path(doc.metadata.get("source_file", "doc")).stem
+            slug = re.sub(r"[^a-zA-Z0-9_]", "_", src_name)[:20]
+            chunk_id = f"{slug}_sec{doc.metadata.get('section_number', 0)}_chunk{i+1}"
             metadata = dict(doc.metadata)
             metadata["chunk_id"] = chunk_id
             metadata["strategy"] = strategy
