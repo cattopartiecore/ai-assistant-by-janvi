@@ -33,36 +33,42 @@ if str(APP_DIR) not in sys.path:
 
 from src.config import (
     DATA_DIR,
-    CHUNK_STRATEGIES,
     DEFAULT_STRATEGY,
     DEFAULT_TOP_K,
     SIMILARITY_THRESHOLD,
     FALLBACK_RESPONSE,
-    LLM_PROVIDER,
-    GEMINI_MODEL,
-    EVAL_DIR,
 )
 from src.qa_chain import answer_question
 from src.loader import load_all_documents
-from src.indexer import build_all_indices, get_stored_manifest, compute_data_hash
+from src.indexer import build_all_indices
 
 try:
-    from styles import get_app_css, GOOGLE_BLUE, GOOGLE_RED, GOOGLE_YELLOW, GOOGLE_GREEN
+    from styles import get_app_css
 except (ModuleNotFoundError, ImportError):
-    from app.styles import get_app_css, GOOGLE_BLUE, GOOGLE_RED, GOOGLE_YELLOW, GOOGLE_GREEN
+    from app.styles import get_app_css
+
+try:
+    from components import (
+        PROMPT_CARDS,
+        DID_YOU_KNOW_FACTS,
+        render_header,
+        render_greeting_and_tips,
+        render_prompt_cards,
+        render_sidebar,
+        render_footer,
+    )
+except (ModuleNotFoundError, ImportError):
+    from app.components import (
+        PROMPT_CARDS,
+        DID_YOU_KNOW_FACTS,
+        render_header,
+        render_greeting_and_tips,
+        render_prompt_cards,
+        render_sidebar,
+        render_footer,
+    )
 
 FEEDBACK_FILE = ROOT_DIR / "feedback.json"
-
-DID_YOU_KNOW_FACTS = [
-    "📍 **Room 104, Admin Block**: The Student Support Desk is open Monday through Friday, 09:00 to 17:00 (closed during 13:00–14:00 lunch).",
-    "🚀 **HackUSAR 2026**: A 24-hour hackathon scheduled for Nov 14–15, 2026 focusing on AI and Sustainable Cities.",
-    "📜 **Workshop Certificates**: Attendance does NOT automatically grant a certificate; explicit criteria and project evaluation must be met.",
-    "📁 **Project Deliverables**: All project submissions require a `README.md`, `DECISIONS.md`, and `AI_USAGE.md` (if AI tools were used).",
-    "👤 **Community Leadership**: Aarav Sharma is the GDG On Campus USAR Community Lead for the 2026–2027 term.",
-    "🏛️ **Faculty Advisor**: Dr. Neha Verma (Associate Professor, Dept of AI & Data Science) serves as the faculty sponsor.",
-    "🎟️ **Free Registration**: Tickets for all GDG USAR technical events are free for registered USAR students but strictly non-transferable.",
-    "💬 **Discord Community**: All official announcements, study jam voice lounges, and mentor Q&A channels are hosted on the club Discord.",
-]
 
 # ---------------------------------------------------------------------------
 # Page Configuration & Theming
@@ -76,6 +82,8 @@ st.set_page_config(
 
 
 def init_session():
+    if "theme_mode" not in st.session_state:
+        st.session_state.theme_mode = "dark"
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "active_strategy" not in st.session_state:
@@ -88,8 +96,8 @@ def init_session():
         st.session_state.top_k = DEFAULT_TOP_K
     if "threshold" not in st.session_state:
         st.session_state.threshold = SIMILARITY_THRESHOLD
-    if "theme_mode" not in st.session_state:
-        st.session_state.theme_mode = "Dark"
+    if "view_mode" not in st.session_state:
+        st.session_state.view_mode = "Full View"
     if "session_stats" not in st.session_state:
         st.session_state.session_stats = {
             "queries_count": 0,
@@ -99,9 +107,32 @@ def init_session():
         }
     if "current_fact_idx" not in st.session_state:
         st.session_state.current_fact_idx = 0
+    if "pending_question" not in st.session_state:
+        st.session_state.pending_question = None
+    if "show_suggestions" not in st.session_state:
+        st.session_state.show_suggestions = False
 
 
 init_session()
+
+# Map card ID to full question string
+CARD_ID_TO_QUESTION = {card.id: card.question for card in PROMPT_CARDS}
+
+# Check query parameter (?ask=CARD_ID) from card click
+ask_param = st.query_params.get("ask")
+if ask_param:
+    if ask_param in CARD_ID_TO_QUESTION:
+        st.session_state["pending_question"] = CARD_ID_TO_QUESTION[ask_param]
+    st.query_params.clear()
+
+# Detect first-load to play entrance animations once only
+if "has_loaded_once" not in st.session_state:
+    st.session_state.has_loaded_once = True
+    animate_first_load = True
+else:
+    animate_first_load = False
+
+# Inject centralized stylesheet (default DARK)
 st.markdown(get_app_css(st.session_state.theme_mode), unsafe_allow_html=True)
 
 
@@ -158,278 +189,88 @@ def save_user_feedback(question: str, answer: str, rating: str, strategy: str, s
 
 
 # ---------------------------------------------------------------------------
-# Sidebar: Clean Grouped Layout with Compact Spacing
+# Event Cards Extractor
 # ---------------------------------------------------------------------------
-with st.sidebar:
-    # 1. Appearance & Scope Group
-    st.markdown("### 🎨 Appearance & Scope")
-    col_t1, col_t2 = st.columns([0.45, 0.55])
-    with col_t1:
-        theme_choice = st.radio(
-            "Theme",
-            options=["Dark", "Light"],
-            index=0 if st.session_state.theme_mode == "Dark" else 1,
-            horizontal=True,
-            label_visibility="collapsed",
-            help="Toggle between Dark (#121212) and Light theme.",
-        )
-        if theme_choice != st.session_state.theme_mode:
-            st.session_state.theme_mode = theme_choice
-            st.rerun()
-
-    with col_t2:
-        scope_choice = st.selectbox(
-            "Search Scope",
-            options=["All documents", "Handbook only"],
-            index=0 if st.session_state.search_scope == "all" else 1,
-            label_visibility="collapsed",
-            help="Choose 'All documents' for supplemental data or 'Handbook only' for Task 3 official handbook.",
-        )
-        st.session_state.search_scope = "all" if scope_choice == "All documents" else "handbook"
-
-    st.markdown("---")
-
-    # 2. Pipeline Settings Group
-    st.markdown("### ⚙️ Pipeline Configuration")
-    strategy_options = list(CHUNK_STRATEGIES.keys())
-    selected_strategy = st.selectbox(
-        "Chunking Strategy",
-        options=strategy_options,
-        index=strategy_options.index(st.session_state.active_strategy),
-        help="Strategy A (Character 500) or Strategy B (Recursive 200).",
-    )
-    st.session_state.active_strategy = selected_strategy
-
-    compare_toggle = st.toggle(
-        "⚖️ Compare Mode (Side-by-Side)",
-        value=st.session_state.compare_mode,
-        help="Queries both chunking strategies simultaneously and displays results side by side.",
-    )
-    st.session_state.compare_mode = compare_toggle
-
-    col_k, col_thresh = st.columns(2)
-    with col_k:
-        top_k_val = st.slider(
-            "Top K Chunks",
-            min_value=1,
-            max_value=5,
-            value=st.session_state.top_k,
-            help="Number of most similar passages to retrieve.",
-        )
-        st.session_state.top_k = top_k_val
-    with col_thresh:
-        thresh_val = st.slider(
-            "Min Match Score",
-            min_value=0.20,
-            max_value=0.70,
-            value=st.session_state.threshold,
-            step=0.05,
-            help="Cosine similarity threshold. Below this triggers fallback.",
-        )
-        st.session_state.threshold = thresh_val
-
-    st.markdown("---")
-
-    # 3. Knowledge Base Documents Group
-    with st.expander("📚 Knowledge Base Documents", expanded=False):
-        st.caption("Indexed files in `data/` directory:")
-        supported_files = sorted(
-            [p for p in DATA_DIR.iterdir() if p.is_file() and p.suffix.lower() in [".pdf", ".txt", ".md"]]
-        )
-        for f in supported_files:
-            is_hb = "task3" in f.name.lower() or "handbook" in f.name.lower()
-            badge = "📘 [HANDBOOK]" if is_hb else "📄 [EXTRA]"
-            size_kb = round(f.stat().st_size / 1024, 1)
-            st.markdown(f"**{badge}** `{f.name}` ({size_kb} KB)")
-
-        st.markdown("")
-        if st.button("🔄 Rebuild Vector Index", use_container_width=True):
-            with st.spinner("Rebuilding ChromaDB collections for all documents..."):
-                build_all_indices(force_rebuild=True)
-            st.success("Vector index successfully rebuilt!")
-            st.rerun()
-
-        st.markdown("##### ➕ Upload Document")
-        uploaded_file = st.file_uploader(
-            "Add .txt, .md, or .pdf",
-            type=["txt", "md", "pdf"],
-            help="Uploaded documents are stored in data/ and indexed immediately.",
-        )
-        if uploaded_file is not None:
-            dest_path = DATA_DIR / uploaded_file.name
-            if not dest_path.exists():
-                with open(dest_path, "wb") as f_out:
-                    f_out.write(uploaded_file.getbuffer())
-                with st.spinner(f"Indexing new document `{uploaded_file.name}`..."):
-                    build_all_indices(force_rebuild=True)
-                st.success(f"Added and indexed `{uploaded_file.name}`!")
-                st.rerun()
-
-    # 4. "Did You Know?" Fact Strip
-    st.markdown("### 💡 Quick Fact")
-    fact_text = DID_YOU_KNOW_FACTS[st.session_state.current_fact_idx % len(DID_YOU_KNOW_FACTS)]
-    st.markdown(
-        f"""
-        <div class="did-you-know-card">
-            <div class="did-you-know-header">✨ Verified Fact from Docs</div>
-            <div class="did-you-know-body">{fact_text}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    if st.button("🎲 Next Fact", key="btn_next_fact", use_container_width=True):
-        st.session_state.current_fact_idx = (st.session_state.current_fact_idx + 1) % len(DID_YOU_KNOW_FACTS)
-        st.rerun()
-
-    st.markdown("---")
-
-    # 5. Pipeline & Analytics Group
-    with st.expander("ℹ️ How It Works (RAG Architecture)", expanded=False):
-        st.markdown(
-            """
-            ```
-            ┌─────────────────┐
-            │  User Question  │
-            └────────┬────────┘
-                     ▼
-            ┌──────────────────────────────────┐
-            │ Embedding (all-MiniLM-L6-v2)     │
-            │ Top-k Cosine Similarity Search   │
-            │ Scope Filter (All vs Handbook)   │
-            └────────┬─────────────────────────┘
-                     ▼
-            ┌──────────────────────────────────┐
-            │ Layer A: Retrieval Guard         │
-            │ Score < 0.40  ──► Fallback Card  │
-            └────────┬─────────────────────────┘
-                     ▼
-            ┌──────────────────────────────────┐
-            │ Layer B: Grounded LLM Prompt     │
-            │ (Strict facts + Conflict Rules)  │
-            │ Section 7 Unlisted ──► Fallback  │
-            └────────┬─────────────────────────┘
-                     ▼
-            ┌──────────────────────────────────┐
-            │ Verified Answer with Citations   │
-            │ Sources: [File] Sec N (p. P)     │
-            └──────────────────────────────────┘
-            ```
-            """
-        )
-
-    with st.expander("📈 Session Analytics", expanded=False):
-        stats = st.session_state.session_stats
-        q_count = stats["queries_count"]
-        avg_conf = (stats["total_confidence"] / q_count) if q_count > 0 else 0.0
-        fb_rate = ((stats["fallback_count"] / q_count) * 100) if q_count > 0 else 0.0
-        avg_lat = (stats["total_latency"] / q_count) if q_count > 0 else 0.0
-
-        st.metric("Questions Asked", q_count)
-        st.metric("Avg Match Confidence", f"{avg_conf:.3f}")
-        st.metric("Fallback Rate", f"{fb_rate:.1f}%")
-        st.metric("Avg Latency", f"{avg_lat:.2f}s")
-
-
-# ---------------------------------------------------------------------------
-# Main Header Layout (Inline colored G-D-G on single line, subtitle below)
-# ---------------------------------------------------------------------------
-st.markdown('<div class="gdg-accent-bar"></div>', unsafe_allow_html=True)
-st.markdown(
+def extract_event_cards(chunks: List[dict]) -> List[dict]:
     """
-    <div class="main-header">
-        <div class="brand-title">
-            <span class="brand-g">G</span><span class="brand-d">D</span><span class="brand-g2">G</span>&nbsp;<span class="brand-campus">On Campus USAR</span>
-        </div>
-        <div class="brand-subtitle">
-            Grounded multi-document knowledge base with strict zero-hallucination defense and verifiable citations.
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-# ---------------------------------------------------------------------------
-# Helper: Event Card Extraction from events_calendar_2026.md
-# ---------------------------------------------------------------------------
-def extract_event_cards(chunks: List[Dict[str, Any]]) -> List[Dict[str, str]]:
-    """Extract structured event card if retrieved chunks contain events_calendar_2026.md."""
-    event_chunks = [c for c in chunks if "events_calendar" in c.get("source_file", "").lower()]
-    if not event_chunks:
-        return []
-
-    combined = "\n".join(c.get("content", "") for c in event_chunks)
+    If any retrieved chunk is from events_calendar_2026.md, parse factual event metadata.
+    Grounds output strictly in chunk content.
+    """
     cards = []
+    for c in chunks:
+        src = c.get("source_file", "").lower()
+        if "event" in src or "calendar" in src:
+            content = c.get("content", "")
+            lines = [line.strip() for line in content.split("\n") if line.strip()]
 
-    if "HackUSAR" in combined:
-        cards.append({
-            "name": "HackUSAR 2026 (Annual Hackathon)",
-            "date": "November 14–15, 2026",
-            "venue": "Main Campus USAR Auditorium & IoT Labs",
-            "registration": "Free via official community portal (opens 2 weeks prior)",
-            "details": "24-hour hackathon on AI & Sustainable Cities. Teams of 2–4.",
-            "icon": "🚀",
-        })
-    elif "AI Bootcamp" in combined or "Vision Workshop" in combined:
-        cards.append({
-            "name": "AI Bootcamp & Vision Workshop",
-            "date": "September 18, 2026",
-            "venue": "Computer Center Lab 201",
-            "registration": "Free via official community portal (opens 2 weeks prior)",
-            "details": "Hands-on computer vision and multimodal agent development.",
-            "icon": "🤖",
-        })
-    elif "Cloud Study Jam" in combined:
-        cards.append({
-            "name": "Cloud Study Jam",
-            "date": "October 5, 2026",
-            "venue": "Virtual on Google Meet",
-            "registration": "Free via official community portal (opens 2 weeks prior)",
-            "details": "Google Cloud Platform fundamentals and Vertex AI credits.",
-            "icon": "☁️",
-        })
-    elif "events calendar" in combined.lower() or "registration" in combined.lower():
-        cards.append({
-            "name": "GDG USAR Academic Events 2026",
-            "date": "Throughout 2026 Academic Year",
-            "venue": "USAR Campus / Virtual",
-            "registration": "Opens 2 weeks before event date via chapter portal",
-            "details": "Free and non-transferable tickets for registered USAR students.",
-            "icon": "📅",
-        })
-    return cards
+            ev_name = "GDG USAR Campus Event"
+            ev_date = "2026 Academic Term"
+            ev_venue = "USAR Campus / Online"
+            ev_reg = "Free for USAR Students"
+            ev_details = "Technical workshop & networking"
+
+            for line in lines:
+                if line.startswith("#"):
+                    ev_name = line.lstrip("#").strip()
+                elif "date:" in line.lower() or "when:" in line.lower():
+                    ev_date = line.split(":", 1)[1].strip()
+                elif "venue:" in line.lower() or "where:" in line.lower() or "location:" in line.lower():
+                    ev_venue = line.split(":", 1)[1].strip()
+                elif "registration:" in line.lower() or "fee:" in line.lower():
+                    ev_reg = line.split(":", 1)[1].strip()
+                elif "theme:" in line.lower() or "topic:" in line.lower() or "focus:" in line.lower():
+                    ev_details = line.split(":", 1)[1].strip()
+
+            if any(term in content.lower() for term in ["hackusar", "summit", "bootcamp", "jam", "workshop"]):
+                cards.append({
+                    "name": ev_name,
+                    "date": ev_date,
+                    "venue": ev_venue,
+                    "registration": ev_reg,
+                    "details": ev_details,
+                    "icon": "🚀" if "hack" in ev_name.lower() else "📅",
+                })
+    return cards[:2]
 
 
 # ---------------------------------------------------------------------------
-# Helper: Follow-up Suggestions & Matched Words Highlighter
+# Follow-up Suggestions Generator
 # ---------------------------------------------------------------------------
-def generate_followup_suggestions(retrieved_chunks: List[Dict[str, Any]]) -> List[str]:
-    """Generates 3 contextual follow-up questions strictly from retrieved context."""
+def generate_followup_suggestions(chunks: List[dict]) -> List[str]:
     suggestions = []
     seen = set()
-    for c in retrieved_chunks:
-        sec = c.get("section_title", "")
-        f_name = c.get("source_file", "")
-        if "Support Desk" in sec and "hours" not in seen:
-            suggestions.append("Where is the Student Support Desk located on campus?")
+
+    for c in chunks:
+        text = c.get("content", "").lower()
+
+        if ("support desk" in text or "hours" in text or "room 104" in text) and "hours" not in seen:
+            suggestions.append("What are the lunch break hours of the Support Desk?")
+            suggestions.append("Who do I contact if Room 104 is closed?")
             seen.add("hours")
-        elif "Workshop" in sec and "workshops" not in seen:
-            suggestions.append("What are the prerequisites for attending technical workshops?")
-            seen.add("workshops")
-        elif "Project" in sec and "projects" not in seen:
-            suggestions.append("What is required in the DECISIONS.md file?")
-            seen.add("projects")
-        elif "Executive" in sec or "Team" in sec or "teams" in f_name.lower():
-            suggestions.append("Who leads the Technical and Media wings of GDG USAR?")
-            seen.add("team")
-        elif "Event" in sec or "Hackathon" in sec or "events" in f_name.lower():
-            suggestions.append("What is the registration procedure for GDG USAR events?")
-            seen.add("events")
+
+        if ("certificate" in text or "workshop" in text) and "cert" not in seen:
+            suggestions.append("How are workshop attendance and certificates evaluated?")
+            seen.add("cert")
+
+        if ("project" in text or "readme" in text or "submission" in text) and "proj" not in seen:
+            suggestions.append("What are the mandatory deliverables for project submissions?")
+            suggestions.append("When is the AI_USAGE.md file required?")
+            seen.add("proj")
+
+        if ("lead" in text or "team" in text or "domain" in text) and "lead" not in seen:
+            suggestions.append("Who is the faculty advisor for GDG On Campus USAR?")
+            suggestions.append("What are the different technical domain wings?")
+            seen.add("lead")
+
+        if ("hackusar" in text or "hackathon" in text or "event" in text) and "hack" not in seen:
+            suggestions.append("What are the team size limits for HackUSAR 2026?")
+            suggestions.append("Is registration for GDG events free?")
+            seen.add("hack")
 
     fallback_defaults = [
-        "What are the Student Support Desk's opening hours?",
-        "What files should a project submission include?",
-        "When is HackUSAR 2026 scheduled to take place?",
+        "What are the Student Support Desk opening hours?",
+        "When is HackUSAR 2026 scheduled and where?",
+        "Does workshop attendance guarantee a certificate?",
     ]
     for fb in fallback_defaults:
         if len(suggestions) < 3 and fb not in suggestions:
@@ -444,7 +285,7 @@ def highlight_matched_words(snippet: str, query: str) -> str:
         return snippet
     pattern = re.compile(rf"(\b(?:{'|'.join(words)})\b)", re.IGNORECASE)
     return pattern.sub(
-        r"<mark style='background-color: #5A4500; color: #FFF176; padding: 1px 3px; border-radius: 3px;'>\1</mark>",
+        r"<mark style='background-color: rgba(66, 133, 244, 0.25); color: #8ab4f8; padding: 1px 4px; border-radius: 3px;'>\1</mark>",
         snippet,
     )
 
@@ -456,89 +297,41 @@ def stream_words(text: str):
 
 
 # ---------------------------------------------------------------------------
-# Hero Welcome Screen: Equal Height Cards & Aligned Buttons
+# Sidebar & Header Rendering
 # ---------------------------------------------------------------------------
-if len(st.session_state.messages) == 0:
-    st.markdown(
-        """
-        <div class="hero-container">
-            <div class="hero-badge">✨ Grounded Multi-Document Knowledge Assistant</div>
-            <h1 class="hero-title">How can we help you today?</h1>
-            <p class="hero-tagline">Ask questions about our official handbook, technical workshops, 2026 events, executive leads, and project guidelines.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+supported_files = sorted(
+    [p for p in DATA_DIR.iterdir() if p.is_file() and p.suffix.lower() in [".pdf", ".txt", ".md"]]
+)
+current_fact = DID_YOU_KNOW_FACTS[st.session_state.current_fact_idx % len(DID_YOU_KNOW_FACTS)]
 
-    starter_cards = [
-        {
-            "icon": "🏢",
-            "category": "Support Desk",
-            "question": "What are the Student Support Desk's opening hours?",
-            "desc": "Room 104 hours, lunch breaks & emergency contacts",
-        },
-        {
-            "icon": "📅",
-            "category": "Events & Hackathons",
-            "question": "When is HackUSAR 2026 scheduled and where is the venue?",
-            "desc": "Date, venue, theme, team sizes, and registration",
-        },
-        {
-            "icon": "🎓",
-            "category": "Workshops",
-            "question": "Does attending a workshop automatically give me a certificate?",
-            "desc": "Official certification eligibility & evaluation policies",
-        },
-        {
-            "icon": "📁",
-            "category": "Project Showcase",
-            "question": "What files should a project submission include, and what should the README cover?",
-            "desc": "Deliverables (README, DECISIONS, AI_USAGE) & rules",
-        },
-        {
-            "icon": "👥",
-            "category": "About GDG USAR",
-            "question": "Who is the current community lead of GDG On Campus USAR?",
-            "desc": "Executive board, leads, faculty advisor, and wings",
-        },
-        {
-            "icon": "🛡️",
-            "category": "Try me (Unanswerable)",
-            "question": "What is the total annual funding budget allocated to GDG USAR for 2027?",
-            "desc": "Test out-of-scope fallback & zero-hallucination defense",
-        },
-    ]
+sidebar_state = render_sidebar(
+    theme_mode=st.session_state.theme_mode,
+    active_strategy=st.session_state.active_strategy,
+    search_scope=st.session_state.search_scope,
+    compare_mode=st.session_state.compare_mode,
+    top_k=st.session_state.top_k,
+    threshold=st.session_state.threshold,
+    view_mode=st.session_state.view_mode,
+    stats=st.session_state.session_stats,
+    data_files=supported_files,
+    current_fact=current_fact,
+)
 
-    selected_starter = None
+# Theme change handling
+if sidebar_state.get("theme_mode") and sidebar_state["theme_mode"] != st.session_state.theme_mode:
+    st.session_state.theme_mode = sidebar_state["theme_mode"]
+    st.rerun()
 
-    # Render in 2 rows of 3 columns (Equal height cards + seamlessly aligned buttons)
-    for row_start in [0, 3]:
-        cols = st.columns(3)
-        for i in range(3):
-            idx = row_start + i
-            card = starter_cards[idx]
-            with cols[i]:
-                st.markdown(
-                    f"""
-                    <div class="suggestion-card-box">
-                        <div class="suggestion-card-top">
-                            <span class="suggestion-icon">{card['icon']}</span>
-                            <span class="suggestion-cat">{card['category']}</span>
-                        </div>
-                        <div class="suggestion-q">{card['question']}</div>
-                        <div class="suggestion-desc">{card['desc']}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-                st.markdown('<div class="card-btn-container">', unsafe_allow_html=True)
-                if st.button("Ask Question →", key=f"btn_card_{idx}", use_container_width=True):
-                    selected_starter = card["question"]
-                st.markdown('</div>', unsafe_allow_html=True)
+# Sync sidebar state with session state
+st.session_state.search_scope = sidebar_state["search_scope"]
+st.session_state.active_strategy = sidebar_state["active_strategy"]
+st.session_state.compare_mode = sidebar_state["compare_mode"]
+st.session_state.top_k = sidebar_state["top_k"]
+st.session_state.threshold = sidebar_state["threshold"]
+st.session_state.view_mode = sidebar_state["view_mode"]
 
-    if selected_starter:
-        st.session_state.triggered_starter = selected_starter
-        st.rerun()
+# Render page header with slide-in accent bar on first load
+render_header(animate=animate_first_load)
 
 
 # ---------------------------------------------------------------------------
@@ -552,36 +345,33 @@ def render_assistant_response(msg_idx: Any, result: dict, query_context: str = "
     guard = result.get("guard_triggered")
     error_msg = result.get("error")
 
-    # 1. Error / Rate Limit Handling
+    # 1. Error / Rate Limit Handling with polite microcopy
     if error_msg:
-        if "429" in error_msg or "quota" in error_msg.lower() or "exhausted" in error_msg.lower():
-            st.warning(
-                "⏳ **Free Tier Rate Limit Exceeded**: Google Gemini free-tier rate limits were momentarily reached. Please wait ~15–30 seconds and retry your question.",
-                icon="⚠️",
-            )
-            return
-        st.error(f"Error executing query: {error_msg}")
+        st.warning(
+            "⚠️ **Something went wrong. Please try again in a moment.** (The language model or network encountered a temporary delay).",
+            icon="⚠️",
+        )
         return
 
     # 2. Check Fallback Status
     is_fallback = FALLBACK_RESPONSE.lower() in ans_text.lower() or guard in ["retrieval_guard", "prompt_guard"]
 
-    # Header with confidence badge (Google palette)
+    # Header with confidence badge (High / Medium / Low)
     badge_html = ""
     if is_fallback:
-        badge_html = '<span class="badge-low">🛡️ Out of Scope / Fallback</span>'
+        badge_html = '<span class="confidence-badge conf-low">🛡️ Out of Scope</span>'
     elif score >= 0.70:
-        badge_html = f'<span class="badge-high">🟢 High Confidence ({score:.2f})</span>'
-    elif score >= 0.45:
-        badge_html = f'<span class="badge-medium">🟡 Moderate Confidence ({score:.2f})</span>'
+        badge_html = '<span class="confidence-badge conf-high">🟢 High Confidence</span>'
+    elif score >= 0.50:
+        badge_html = '<span class="confidence-badge conf-medium">🟡 Medium Confidence</span>'
     else:
-        badge_html = f'<span class="badge-low">🔴 Low Match ({score:.2f})</span>'
+        badge_html = '<span class="confidence-badge conf-low">⚪ Low Confidence</span>'
 
     st.markdown(
         f"""
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; flex-wrap: wrap; gap: 4px;">
             {badge_html}
-            <span style="font-size: 0.8rem; color: var(--text-muted);">⏱️ {latency}s | Match score: {score:.3f}</span>
+            <span style="font-size: 12px; color: var(--text-muted);">⏱️ {latency}s &bull; Match: {score:.3f}</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -594,9 +384,7 @@ def render_assistant_response(msg_idx: Any, result: dict, query_context: str = "
             st.markdown(
                 f"""
                 <div class="event-banner-card">
-                    <div class="event-banner-header">
-                        <span class="event-badge">{ev['icon']} OFFICIAL EVENT SCHEDULE</span>
-                    </div>
+                    <span class="event-badge">{ev['icon']} Official Event Schedule</span>
                     <div class="event-title">{ev['name']}</div>
                     <div class="event-grid">
                         <div class="event-item"><span class="event-label">📅 Date:</span><span class="event-val">{ev['date']}</span></div>
@@ -611,23 +399,15 @@ def render_assistant_response(msg_idx: Any, result: dict, query_context: str = "
 
     # 4. Fallback Card vs Normal Answer Prose
     if is_fallback:
-        loaded_titles = []
-        for p in DATA_DIR.iterdir():
-            if p.is_file() and p.suffix.lower() in [".pdf", ".txt", ".md"]:
-                loaded_titles.append(p.stem.replace("_", " ").title())
-        topics_str = ", ".join(loaded_titles[:4])
-
         st.markdown(
-            f"""
-            <div class="fallback-card">
-                <div class="fallback-title">
-                    ⚠️ {FALLBACK_RESPONSE}
+            """
+            <div class="unanswerable-card">
+                <div class="unanswerable-header">
+                    <span>ℹ️</span>
+                    <span>Not Covered in Official Documents</span>
                 </div>
-                <div class="fallback-hint">
-                    <strong>Topics Covered in Knowledge Base:</strong><br>
-                    Information is currently indexed for: <em>{topics_str}</em>.<br>
-                    Try asking about <strong>Student Support Desk hours</strong>, <strong>HackUSAR 2026 schedule</strong>, 
-                    <strong>Project Submission deliverables</strong>, or <strong>Community Leads</strong>.
+                <div class="unanswerable-message">
+                    This isn't covered in the official documents. Try rephrasing or ask about the handbook, events or workshops.
                 </div>
             </div>
             """,
@@ -648,7 +428,7 @@ def render_assistant_response(msg_idx: Any, result: dict, query_context: str = "
 
         # Expandable Source Cards (collapsed by default)
         if chunks:
-            with st.expander(f"📚 View Retrieved Sources ({len(chunks)} passages)", expanded=False):
+            with st.expander(f"📚 View Sources ({len(chunks)} passages)", expanded=False):
                 for idx, c in enumerate(chunks, 1):
                     src_file = c.get("source_file", "document")
                     sec_label = c.get("section", "Section")
@@ -664,9 +444,9 @@ def render_assistant_response(msg_idx: Any, result: dict, query_context: str = "
                             <div class="source-header">
                                 <div>
                                     <span class="source-tag">📄 {src_file}</span>
-                                    <strong>{sec_label}</strong> (p. {page})
+                                    <span><strong>{sec_label}</strong> &bull; p. {page}</span>
                                 </div>
-                                <span style="font-weight: 600; color: #4285F4;">Cosine Sim: {c_score:.3f}</span>
+                                <span class="source-score-badge">Match: {c_score:.3f}</span>
                             </div>
                             <div class="source-snippet">"{highlighted}"</div>
                         </div>
@@ -707,7 +487,7 @@ def render_assistant_response(msg_idx: Any, result: dict, query_context: str = "
                 prev_q = st.session_state.messages[msg_idx - 1]["content"]
                 st.session_state.messages.pop(msg_idx)
                 st.session_state.messages.pop(msg_idx - 1)
-                st.session_state.triggered_starter = prev_q
+                st.session_state.pending_question = prev_q
                 st.rerun()
 
     # Show copyable code block if toggled
@@ -719,14 +499,14 @@ def render_assistant_response(msg_idx: Any, result: dict, query_context: str = "
         followups = generate_followup_suggestions(chunks)
         if followups:
             st.markdown(
-                "<span style='font-size:0.8rem; color:var(--text-muted);'>💡 Related Follow-up Questions:</span>",
+                "<span style='font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;'>💡 Related Follow-up:</span>",
                 unsafe_allow_html=True,
             )
             f_cols = st.columns(len(followups))
             for f_idx, f_query in enumerate(followups):
                 with f_cols[f_idx]:
                     if st.button(f"🔍 {f_query}", key=f"fu_{msg_idx}_{f_idx}", use_container_width=True):
-                        st.session_state.triggered_starter = f_query
+                        st.session_state.pending_question = f_query
                         st.rerun()
 
 
@@ -737,7 +517,7 @@ def execute_query(query: str):
     if not query.strip():
         return
 
-    st.session_state.messages.append({"role": "user", "content": query})
+    st.session_state.messages.append({"role": "user", "content": query, "is_new": True})
 
     if st.session_state.compare_mode:
         with st.chat_message("assistant", avatar="⚖️"):
@@ -745,7 +525,14 @@ def execute_query(query: str):
             thinking_ph.markdown(
                 """
                 <div class="thinking-container">
-                    <div class="thinking-title">⚖️ <strong>Comparing Strategies...</strong> Searching handbook with both <code>char_500</code> & <code>recursive_200</code></div>
+                    <div class="thinking-title">
+                        <span>Searching documents (Comparing strategies)</span>
+                        <span class="bouncing-dots">
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                        </span>
+                    </div>
                     <div class="skeleton-shimmer">
                         <div class="skeleton-line full"></div>
                         <div class="skeleton-line long"></div>
@@ -778,6 +565,7 @@ def execute_query(query: str):
             "role": "assistant_compare",
             "res_a": res_a,
             "res_b": res_b,
+            "is_new": True,
         })
 
         # Update Session Analytics
@@ -793,7 +581,14 @@ def execute_query(query: str):
             thinking_ph.markdown(
                 """
                 <div class="thinking-container">
-                    <div class="thinking-title">🔍 <strong>Reading the handbook...</strong> Verifying grounded facts from knowledge base</div>
+                    <div class="thinking-title">
+                        <span>Searching documents</span>
+                        <span class="bouncing-dots">
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                        </span>
+                    </div>
                     <div class="skeleton-shimmer">
                         <div class="skeleton-line full"></div>
                         <div class="skeleton-line long"></div>
@@ -830,27 +625,61 @@ def execute_query(query: str):
             st.session_state.session_stats["fallback_count"] += 1
 
 
-# Trigger chip question if queued
-if "triggered_starter" in st.session_state and st.session_state.triggered_starter:
-    t_query = st.session_state.triggered_starter
-    st.session_state.triggered_starter = None
-    execute_query(t_query)
+# ---------------------------------------------------------------------------
+# Pending Question Handler (Card click via query params / Suggestions)
+# ---------------------------------------------------------------------------
+if st.session_state.get("pending_question"):
+    queued_q = st.session_state.pending_question
+    st.session_state.pending_question = None
+    execute_query(queued_q)
     st.rerun()
+
+
+# ---------------------------------------------------------------------------
+# Prompt Cards / Suggestions Rendering
+# ---------------------------------------------------------------------------
+has_messages = len(st.session_state.messages) > 0
+
+# If chat is empty, display greeting, tip chips, and prompt cards
+if not has_messages:
+    render_greeting_and_tips()
+    render_prompt_cards(PROMPT_CARDS, view_mode=st.session_state.view_mode, animate_entrance=animate_first_load)
+else:
+    # If conversation is active, provide a clean toggle to show/hide suggestions
+    col_tog1, col_tog2 = st.columns([0.3, 0.7])
+    with col_tog1:
+        toggle_label = "💡 Hide Suggestions" if st.session_state.show_suggestions else "💡 Show Suggestions"
+        if st.button(toggle_label, key="btn_toggle_sug", help="Toggle starter question cards"):
+            st.session_state.show_suggestions = not st.session_state.show_suggestions
+            st.rerun()
+
+    if st.session_state.show_suggestions:
+        render_prompt_cards(PROMPT_CARDS, view_mode=st.session_state.view_mode, animate_entrance=False)
 
 
 # ---------------------------------------------------------------------------
 # Render Message History
 # ---------------------------------------------------------------------------
 for idx, msg in enumerate(st.session_state.messages):
+    is_fresh = msg.get("is_new", False)
+    anim_cls = "new-message-anim" if is_fresh else ""
+
     if msg["role"] == "user":
-        with st.chat_message("user", avatar="👤"):
-            st.markdown(f"**{msg['content']}**")
+        st.markdown(
+            f"""
+            <div class="user-bubble-wrapper {anim_cls}">
+                <div class="user-msg-bubble">
+                    <strong>{msg['content']}</strong>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     elif msg["role"] == "assistant":
         user_query = st.session_state.messages[idx - 1]["content"] if idx > 0 else ""
-        is_fresh = msg.get("is_new", False)
         with st.chat_message("assistant", avatar="🎓"):
-            st.caption(f"Strategy: `{msg.get('strategy', 'default')}` | Scope: `{msg.get('scope', 'all')}`")
+            st.caption(f"Strategy: `{msg.get('strategy', 'default')}` &bull; Scope: `{msg.get('scope', 'all')}`")
             render_assistant_response(idx, msg["result"], query_context=user_query, is_new=is_fresh)
             if is_fresh:
                 msg["is_new"] = False
@@ -862,10 +691,12 @@ for idx, msg in enumerate(st.session_state.messages):
             col_a, col_b = st.columns(2)
             with col_a:
                 st.markdown("##### Strategy A: `char_500`")
-                render_assistant_response(f"{idx}_a", msg["res_a"], query_context=user_query)
+                render_assistant_response(f"{idx}_a", msg["res_a"], query_context=user_query, is_new=is_fresh)
             with col_b:
                 st.markdown("##### Strategy B: `recursive_200`")
-                render_assistant_response(f"{idx}_b", msg["res_b"], query_context=user_query)
+                render_assistant_response(f"{idx}_b", msg["res_b"], query_context=user_query, is_new=is_fresh)
+            if is_fresh:
+                msg["is_new"] = False
 
 
 # ---------------------------------------------------------------------------
@@ -878,6 +709,7 @@ if len(st.session_state.messages) > 0:
     with tool_col1:
         if st.button("🗑️ Clear Chat", use_container_width=True, help="Reset conversation history"):
             st.session_state.messages = []
+            st.session_state.show_suggestions = False
             st.rerun()
 
     with tool_col2:
@@ -917,7 +749,7 @@ if len(st.session_state.messages) > 0:
 
 
 # ---------------------------------------------------------------------------
-# Chat Input Bar
+# Sticky Chat Input Bar
 # ---------------------------------------------------------------------------
 user_prompt = st.chat_input("Ask any question about GDG-USAR handbook, events, teams, or projects...")
 if user_prompt:
@@ -926,19 +758,6 @@ if user_prompt:
 
 
 # ---------------------------------------------------------------------------
-# Footer Layout
+# Footer
 # ---------------------------------------------------------------------------
-st.markdown(
-    """
-    <div class="app-footer">
-        <div class="footer-brand">
-            <span style="color:#4285F4;font-weight:800;">G</span><span style="color:#EA4335;font-weight:800;">D</span><span style="color:#FBBC04;font-weight:800;">G</span>
-            <span>On Campus USAR &bull; Knowledge Assistant</span>
-        </div>
-        <div class="footer-note">
-            Strict zero-hallucination defense &bull; Multi-document grounded RAG &bull; Google Developer Student Clubs USAR
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+render_footer()
