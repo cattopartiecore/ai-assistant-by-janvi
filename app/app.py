@@ -1,5 +1,5 @@
 """
-GDG-USAR Knowledge Base Assistant - Advanced Streamlit Web Application.
+Airaa - GDG On Campus USAR Knowledge Assistant - Advanced Streamlit Web Application.
 Multi-document RAG interface with Google Developer Group theming, interactive starter chips,
 file management, search scope control, streaming-style answers, feedback capture,
 rich citation cards, chat export, and session analytics.
@@ -74,7 +74,7 @@ FEEDBACK_FILE = ROOT_DIR / "feedback.json"
 # Page Configuration & Theming
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="GDG On Campus USAR — Knowledge Assistant",
+    page_title="Airaa — GDG On Campus USAR",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -714,7 +714,7 @@ if len(st.session_state.messages) > 0:
 
     with tool_col2:
         # Build Markdown Export
-        md_transcript = "# GDG-USAR Document Assistant - Chat Transcript\n\n"
+        md_transcript = "# Airaa (GDG On Campus USAR) - Chat Transcript\n\n"
         md_transcript += f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         for m in st.session_state.messages:
             if m["role"] == "user":

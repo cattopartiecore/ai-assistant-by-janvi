@@ -1,5 +1,5 @@
 """
-Chunking comparison analysis for GDG-USAR AI Document Assistant.
+Chunking comparison analysis for Airaa — GDG On Campus USAR Document Assistant.
 Compares:
 - Strategy A: CharacterTextSplitter, chunk_size=500, overlap=50
 - Strategy B: RecursiveCharacterTextSplitter, chunk_size=200, overlap=40

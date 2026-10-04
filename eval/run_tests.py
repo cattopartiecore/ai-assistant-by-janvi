@@ -1,5 +1,5 @@
 """
-Test execution script for GDG-USAR AI Document Assistant.
+Test execution script for Airaa — GDG On Campus USAR Document Assistant.
 Executes the test suite defined in eval/test_questions.json against both chunking strategies:
 - Standard (Questions 1-5) and Bonus (Questions 6-7) under 'handbook' search scope.
 - Extended (Questions 8-12) under 'all' search scope.
@@ -13,6 +13,10 @@ import time
 from pathlib import Path
 from typing import Dict, List, Any
 from tabulate import tabulate
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.config import EVAL_DIR, FALLBACK_RESPONSE
 from src.qa_chain import answer_question, get_llm

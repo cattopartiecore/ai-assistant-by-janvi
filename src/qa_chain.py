@@ -1,5 +1,5 @@
 """
-QA Chain module for GDG-USAR AI Document Assistant.
+QA Chain module for Airaa — GDG On Campus USAR Document Assistant.
 Implements:
 1. Strict grounded system prompt (no outside knowledge, no hallucinations).
 2. Two-layer out-of-scope fallback (Layer A: Retrieval guard, Layer B: Prompt guard).

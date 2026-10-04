@@ -1,5 +1,5 @@
 """
-Design System and Centralized Styles for GDG On Campus USAR Knowledge Assistant.
+Design System and Centralized Styles for Airaa — GDG On Campus USAR Knowledge Assistant.
 Production-grade dark theme (default) and clean light theme with:
 - Strict design tokens (spacing, radius, typography, transitions)
 - Single CSS Grid container for 100% uniform card heights (grid-auto-rows: 1fr)

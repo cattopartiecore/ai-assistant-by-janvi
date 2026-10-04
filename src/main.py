@@ -1,5 +1,5 @@
 """
-CLI entry point for GDG-USAR AI Document Assistant.
+CLI entry point for Airaa — GDG On Campus USAR Document Assistant.
 Provides interactive chat loop and single-query execution with configurable chunking strategy.
 """
 
@@ -35,7 +35,7 @@ def display_result(result: dict):
 def interactive_chat_loop(strategy: str, top_k: int, threshold: float):
     """Runs interactive terminal chat loop."""
     print("\n" + "=" * 70)
-    print(f"  GDG-USAR AI Document Assistant (Strategy: {strategy})")
+    print(f"  Airaa — GDG On Campus USAR Assistant (Strategy: {strategy})")
     print("  Grounded strictly in GDG-USAR Student Handbook.")
     print("  Type 'exit' or 'quit' to end the session.")
     print("=" * 70 + "\n")
@@ -46,7 +46,7 @@ def interactive_chat_loop(strategy: str, top_k: int, threshold: float):
             if not user_input:
                 continue
             if user_input.lower() in ["exit", "quit", "q"]:
-                print("Exiting assistant. Goodbye!")
+                print("Exiting Airaa. Goodbye!")
                 break
 
             result = answer_question(
@@ -67,7 +67,7 @@ def interactive_chat_loop(strategy: str, top_k: int, threshold: float):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="GDG-USAR AI Document Assistant (RAG)",
+        description="Airaa — GDG On Campus USAR Document Assistant (RAG)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(

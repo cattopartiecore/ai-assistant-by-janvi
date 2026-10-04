@@ -1,5 +1,5 @@
 """
-Modular UI Components for GDG On Campus USAR Knowledge Assistant.
+Modular UI Components for Airaa — GDG On Campus USAR Knowledge Assistant.
 Production-grade dark theme default with single CSS grid container for 100% uniform card heights.
 Contains:
 1. Structured prompt cards dataclass and data registry.
@@ -121,7 +121,7 @@ def render_header(animate: bool = False):
         '<div class="main-header">'
         '<div class="header-top-row">'
         '<div class="page-title">'
-        '<span class="brand-g">G</span><span class="brand-d">D</span><span class="brand-g2">G</span>&nbsp;<span class="brand-campus">On Campus USAR</span>'
+        '<span class="brand-g">G</span><span class="brand-d">D</span><span class="brand-g2">G</span>&nbsp;<span class="brand-campus">On Campus USAR &mdash; Airaa</span>'
         '</div>'
         '<div class="status-chip">'
         '<span class="status-dot"></span>'
@@ -141,7 +141,7 @@ def render_greeting_and_tips():
     """Renders the empty-state greeting banner and 3 helpful tip chips."""
     greeting_html = (
         '<div class="greeting-banner">'
-        '<div class="greeting-title">👋 Welcome to GDG On Campus USAR Knowledge Assistant</div>'
+        '<div class="greeting-title">👋 Welcome to Airaa — your GDG On Campus USAR Knowledge Assistant</div>'
         '<div class="greeting-desc">Select a starter topic below or type into the search bar to query official campus documents.</div>'
         '<div class="tip-chips-row">'
         '<div class="tip-chip">🏢 Tip: Ask for room locations & hours</div>'
@@ -400,7 +400,7 @@ def render_footer():
         <div class="app-footer">
             <div class="footer-brand">
                 <span style="color:#4285F4;font-weight:700;">G</span><span style="color:#EA4335;font-weight:700;">D</span><span style="color:#FBBC04;font-weight:700;">G</span>
-                <span>On Campus USAR &bull; Knowledge Assistant</span>
+                <span>On Campus USAR &bull; Airaa</span>
             </div>
             <div class="footer-note">
                 Answers are generated only from the official documents. Built by GDG On Campus USAR.

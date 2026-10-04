@@ -1,5 +1,5 @@
 """
-Retriever module for GDG-USAR AI Document Assistant.
+Retriever module for Airaa — GDG On Campus USAR Document Assistant.
 Executes top-k semantic similarity search against the chosen Chroma collection,
 converts distance to normalized cosine similarity scores, supports search scope
 filtering ('all' vs 'handbook'), and implements the Layer-A Retrieval Guard.

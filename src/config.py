@@ -1,5 +1,5 @@
 """
-Configuration module for GDG-USAR AI Document Assistant.
+Configuration module for Airaa — GDG On Campus USAR Document Assistant.
 Handles paths, model settings, chunking parameters, and similarity thresholds.
 Supports both local (.env / os.environ) and Streamlit Community Cloud (st.secrets) environments.
 """

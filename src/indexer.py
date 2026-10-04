@@ -1,5 +1,5 @@
 """
-Indexer module for GDG-USAR AI Document Assistant.
+Indexer module for Airaa — GDG On Campus USAR Document Assistant.
 Builds and manages persistent ChromaDB vector stores with HuggingFace embeddings
 (sentence-transformers/all-MiniLM-L6-v2) for each chunking strategy.
 Supports automatic index rebuilding via data directory hash check and CLI --rebuild flag.
